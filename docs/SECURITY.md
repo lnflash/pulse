@@ -1,233 +1,150 @@
-# Security Implementation Guide
-
-This document outlines the security measures implemented in Flash Connect and how to properly configure them.
+# Security
 
 ## Overview
 
-Flash Connect implements multiple layers of security to protect user data and prevent unauthorized access:
+Pulse implements enterprise-grade security measures to protect user data and ensure secure operations.
 
-1. **Encryption at Rest**: All sensitive data in Redis is encrypted using AES-256-GCM
-2. **Secure Key Management**: Environment-based configuration with validation
-3. **Session Security**: Encrypted sessions with rotation capabilities
-4. **Rate Limiting**: Protection against abuse and DoS attacks
-5. **Input Validation**: Strict validation of all user inputs
-6. **Audit Logging**: Comprehensive logging with privacy protection
+## Authentication & Authorization
 
-## Encryption Implementation
+### User Authentication
+- Phone number verification through WhatsApp
+- OTP-based account linking with Flash
+- Session tokens stored securely in Redis
+- No passwords stored in the application
 
-### Data Encryption
+### Admin Authorization
+- Admin phone numbers configured in environment
+- Special commands restricted to admin users only
+- Audit logging for admin actions
 
-All sensitive data stored in Redis is automatically encrypted:
+## Data Protection
 
-```typescript
-// Storing encrypted data
-await redisService.setEncrypted('key', sensitiveData, ttl);
+### Encryption
+- All sensitive data encrypted at rest (AES-256-GCM)
+- Redis sessions encrypted with rotating keys
+- Environment variables for secrets management
+- No plaintext storage of API keys or tokens
 
-// Retrieving encrypted data
-const data = await redisService.getEncrypted('key');
-```
+### Data Privacy
+- Minimal data collection policy
+- No permanent message history storage
+- User data isolated by session
+- Automatic session expiration (24h)
 
-### What Gets Encrypted
+## API Security
 
-- User sessions
-- Authentication tokens
-- Payment information
-- Invoice data
-- Pending payments
-- User preferences
+### Flash API
+- Bearer token authentication
+- HTTPS-only communication
+- Rate limiting implemented
+- Request validation and sanitization
 
-### Encryption Algorithm
+### Third-party APIs
+- API keys stored as environment variables
+- Separate keys for development/production
+- Regular key rotation recommended
+- Minimal permission scopes
 
-- **Algorithm**: AES-256-GCM (authenticated encryption)
-- **Key Derivation**: PBKDF2 with 100,000 iterations
-- **IV**: Random 16-byte initialization vector per encryption
-- **Auth Tag**: 16-byte authentication tag for integrity
+## Infrastructure Security
 
-## Environment Configuration
+### Network Security
+- Firewall configuration (UFW)
+- Only required ports exposed (80, 443, 22)
+- Fail2ban for intrusion prevention
+- Regular security updates
 
-### Required Security Variables
-
-```env
-# Generate secure keys with: openssl rand -hex 32
-ENCRYPTION_KEY=<32+ character key>
-ENCRYPTION_SALT=<16+ character salt>
-HASH_SALT=<16+ character salt>
-JWT_SECRET=<32+ character secret>
-SESSION_SECRET=<32+ character secret>
-WEBHOOK_SECRET=<32+ character secret>
-```
-
-### Key Generation
-
-Generate secure keys for production:
-
-```bash
-# Generate encryption key
-openssl rand -hex 32
-
-# Generate salts
-openssl rand -hex 16
-
-# Generate secrets
-openssl rand -hex 32
-```
-
-### Development vs Production
-
-In development, keys are auto-generated if not provided. In production, all security keys MUST be set or the application will fail to start.
+### Application Security
+- Dependencies regularly updated
+- Security scanning in CI/CD
+- Input validation on all commands
+- XSS and injection prevention
 
 ## Session Management
 
-### Session Security Features
+### WhatsApp Sessions
+- Encrypted session storage
+- Automatic session cleanup
+- Session isolation per user
+- Secure QR code delivery for admins
 
-1. **Encrypted Storage**: All session data is encrypted in Redis
-2. **Session Rotation**: Configurable rotation intervals
-3. **Secure Session IDs**: Cryptographically random 32-byte IDs
-4. **TTL Management**: Automatic expiration of inactive sessions
+### Redis Security
+- Password authentication required
+- Encryption for sensitive data
+- Regular backup procedures
+- Memory limits configured
 
-### Session Configuration
+## Security Roadmap
 
-```env
-SESSION_EXPIRES_IN=86400         # 24 hours
-SESSION_ROTATION_INTERVAL=3600   # 1 hour
-```
+### Phase 1 (Current)
+- ✅ Basic encryption and authentication
+- ✅ Input validation and sanitization
+- ✅ Secure session management
+- ✅ Environment-based configuration
 
-## Privacy Protection
+### Phase 2 (Q1 2025)
+- Advanced threat detection
+- Security event monitoring
+- Automated vulnerability scanning
+- Enhanced audit logging
 
-### Phone Number Hashing
+### Phase 3 (Q2 2025)
+- Enterprise security features
+- Multi-factor authentication
+- Hardware security module support
+- Advanced encryption options
 
-Phone numbers used as keys are hashed for privacy:
+### Phase 4 (Q3 2025)
+- Full compliance certifications (SOC 2, ISO 27001)
+- Penetration testing program
+- Bug bounty program
+- Security operations center
 
-```typescript
-const hashedKey = redisService.hashKey('prefix', phoneNumber);
-```
+## Best Practices
 
-### Audit Logging
+### Development
+1. Never commit secrets to version control
+2. Use environment variables for configuration
+3. Implement proper error handling
+4. Validate all user inputs
+5. Keep dependencies updated
 
-Sensitive data is never logged:
-- Phone numbers are hashed in logs
-- Auth tokens are never logged
-- Payment details are redacted
-
-## Rate Limiting
-
-### Default Limits
-
-```env
-# General endpoints
-RATE_LIMIT_WINDOW_MS=60000    # 1 minute
-RATE_LIMIT_MAX=20              # 20 requests per minute
-
-# Authentication endpoints
-AUTH_RATE_LIMIT_WINDOW_MS=300000   # 5 minutes
-AUTH_RATE_LIMIT_MAX=5              # 5 attempts per 5 minutes
-
-# Payment endpoints
-PAYMENT_RATE_LIMIT_WINDOW_MS=60000  # 1 minute
-PAYMENT_RATE_LIMIT_MAX=5            # 5 payments per minute
-```
-
-## Admin Security
-
-### Admin Authentication
-
-Admin commands require:
-1. Phone number in `ADMIN_PHONE_NUMBERS` list
-2. Optional MFA for sensitive operations
-3. Session timeout after inactivity
-
-### Configuration
-
-```env
-ADMIN_PHONE_NUMBERS=+1234567890,+0987654321
-ADMIN_REQUIRE_MFA=true
-ADMIN_SESSION_TIMEOUT=3600
-```
-
-## Security Best Practices
-
-### 1. Key Rotation
-
-Rotate encryption keys periodically:
-1. Generate new keys
-2. Update environment variables
-3. Implement key versioning for gradual migration
-
-### 2. Monitoring
-
-Monitor for security events:
-- Failed authentication attempts
-- Rate limit violations
-- Invalid input patterns
-- Session anomalies
-
-### 3. Updates
-
-Keep dependencies updated:
-```bash
-# Check for vulnerabilities
-npm audit
-
-# Update dependencies
-npm update
-
-# Fix vulnerabilities
-npm audit fix
-```
-
-### 4. Access Control
-
-- Use principle of least privilege
-- Implement role-based access control
-- Audit admin actions
-- Review access logs regularly
+### Deployment
+1. Use HTTPS everywhere
+2. Configure proper firewall rules
+3. Enable automatic security updates
+4. Regular backup procedures
+5. Monitor for suspicious activity
 
 ## Security Checklist
 
 Before deploying to production:
+- [ ] All API keys configured as environment variables
+- [ ] Redis password set and strong
+- [ ] SSL certificates configured
+- [ ] Firewall rules configured
+- [ ] Admin phone numbers set
+- [ ] Backup procedures in place
+- [ ] Monitoring configured
+- [ ] Security scanning completed
 
-- [ ] All security environment variables are set
-- [ ] Keys are generated using cryptographically secure methods
-- [ ] Redis has authentication enabled
-- [ ] HTTPS/TLS is configured
-- [ ] Rate limiting is properly configured
-- [ ] Input validation is enabled
-- [ ] Audit logging is configured
-- [ ] Dependencies are up to date
-- [ ] Security headers are configured
-- [ ] Error messages don't leak sensitive information
+## Reporting Security Issues
 
-## Incident Response
+If you discover a security vulnerability:
+1. Do NOT create a public issue
+2. Email security@islandbitcoin.com
+3. Include detailed description and reproduction steps
+4. Allow time for patch before disclosure
 
-If a security incident occurs:
-
-1. **Immediate Actions**:
-   - Rotate all keys and secrets
-   - Review audit logs
-   - Identify affected users
-   - Patch vulnerabilities
-
-2. **Communication**:
-   - Notify affected users
-   - Document the incident
-   - Report to relevant authorities if required
-
-3. **Prevention**:
-   - Implement additional security measures
-   - Update security procedures
-   - Conduct security training
+We aim to respond within 48 hours and provide regular updates on the remediation progress.
 
 ## Compliance
 
-This implementation helps meet requirements for:
-- GDPR (encryption of personal data)
-- PCI DSS (encryption of payment data)
-- SOC 2 (security controls)
+- GDPR compliant data handling
+- WhatsApp Business API terms compliance
+- Lightning Network security standards
+- Industry best practices for financial applications
 
-## Security Contacts
-
-Report security issues to:
-- Email: security@flashapp.me
-- Bug Bounty: https://flashapp.me/security
-
-Never report security issues in public GitHub issues.
+For detailed security implementation, see:
+- [Security Roadmap](SECURITY_HARDENING_ROADMAP_COMPLETE.md)
+- [Security Checklist](SECURITY_CHECKLIST.md)
+- [Known Vulnerabilities](KNOWN_VULNERABILITIES.md)

@@ -1,140 +1,42 @@
 # Pulse
 
-## Keep your finger on it.
+**Keep your finger on it.**
 
 ![logo](https://github.com/user-attachments/assets/f54a0c3e-0614-404f-a98f-087a0d61a056)
 
-### A WhatsApp integration service for Flash that enables users to check their Bitcoin wallet balance and interact with Flash services through WhatsApp. Now branded as "Pulse" to capture the pulse of the Lightning Network.
+A WhatsApp integration service for Flash that enables Lightning Network payments through WhatsApp.
 
-> **Version**: 2.0.0 - "One-Click Deploy"  
-> **Status**: Production Ready
+## Quick Start
 
-## Overview
-
-This service uses WhatsApp Web.js to provide a seamless integration between Flash and WhatsApp, allowing users to:
-- Link their Flash account via phone number verification
-- Check their wallet balance in their preferred currency
-- Send and receive Lightning payments
-- Manage contacts and payment requests
-- Share content to earn sats through the "vybz" feature
-- Get AI-powered support through Google Gemini
-
-## Tech Stack
-
-- **NestJS** - Backend framework
-- **WhatsApp Web.js** - WhatsApp automation
-- **Redis** - Session management and caching
-- **RabbitMQ** - Event-driven messaging (optional)
-- **PM2** - Production process management
-- **GraphQL** - Flash API integration
-- **Google Gemini AI** - Intelligent responses
-- **TypeScript** - Type safety
-- **Chromium** - Browser automation for WhatsApp
-
-## Features
-
-- ✅ Phone number-based account linking with OTP verification
-- ✅ Payment confirmation for all send commands with detailed summary
-- ✅ Real-time balance checking with automatic currency conversion
-- ✅ Smart caching (30-second TTL) with manual refresh option
-- ✅ Multi-currency support (USD, JMD, EUR, etc.)
-- ✅ AI-powered customer support
-- ✅ Secure session management
-- ✅ Lightning invoice detection and payment
-- ✅ Contact management with automatic vCard import
-- ✅ Payment requests via username, phone, or contact name
-- ✅ Admin session management with QR code delivery
-- ✅ Content sharing ("vybz") to earn sats
-- ✅ Transaction history viewing
-- ✅ Pending payments for non-Flash users
-- ✅ Human support handoff with intelligent routing
-- ✅ Anonymous tip sending via DM
-- ✅ Group tip splitting for Flash users
-- ✅ Voice note support with Speech-to-Text (Whisper AI / Google Cloud)
-- ✅ Natural language command processing with 200+ pattern variations
-- ✅ User-specific voice settings (on/off/only modes)
-- ✅ Payment confirmation for voice commands
-- ✅ Natural language voice responses powered by AI
-- ✅ ElevenLabs integration for ultra-realistic voice synthesis
-- ✅ Transaction details with voice narration
-- ✅ Dynamic voice management system with custom ElevenLabs voices
-- ✅ Voice-only payment notifications for recipients
-- ✅ Automatic voice mode activation for payment recipients
-- ✅ Intuitive onboarding flow for new users
-- ✅ Smart contextual help that detects confusion patterns
-- ✅ Undo transactions within 30 seconds (intraledger only)
-- ✅ Payment templates for recurring transactions
-- ✅ Admin analytics dashboard with daily/weekly reports
-- ✅ Default voice settings for organization-wide preferences
-- ✅ Personalized learning system - Pulse learns about you through Q&A
-- ✅ User knowledge base with categorization and statistics
-
-## Prerequisites
-
-### Local Development
+### Prerequisites
 - Node.js 20+
 - Redis server
 - Chrome/Chromium browser
 - Flash API access token
-- Google Gemini API key (optional)
-
-### Production
-- Ubuntu LTS version (22.04 LTS or 24.04 LTS strongly recommended)
-  - ⚠️ **IMPORTANT**: Use LTS (Long Term Support) versions only
-  - ⚠️ **AVOID**: Interim releases like 24.10 - they lack third-party repository support
-- Domain name with DNS configured
-- 2GB+ RAM recommended
-
-## Quick Start
 
 ### Local Development
 
-1. **Clone and setup:**
-   ```bash
-   git clone https://github.com/lnflash/pulse.git
-   cd pulse
-   
-   # Run the automated setup script
-   ./scripts/setup-local.sh
-   ```
+```bash
+# Clone and setup
+git clone https://github.com/lnflash/pulse.git
+cd pulse
+./scripts/setup-local.sh
 
-2. **Configure API keys in `.env`:**
-   - `FLASH_API_KEY` - Your Flash API key (required)
-   - `GEMINI_API_KEY` - Google Gemini API key (optional)
-   - `ADMIN_PHONE_NUMBERS` - Admin phone numbers
-
-3. **Start development server:**
-   ```bash
-   npm run start:dev
-   ```
-
-4. **Connect WhatsApp:**
-   - Scan the QR code displayed in the console
-   - Use a test WhatsApp number (not your personal one)
+# Configure .env file with your API keys
+# Start development server
+npm run start:dev
+```
 
 ### Production Deployment
 
-Deploy to Ubuntu VPS:
+Deploy to Ubuntu VPS (22.04 or 24.04 LTS):
+
 ```bash
-# 1. Download the setup script
+# Download and run setup script
 wget https://raw.githubusercontent.com/lnflash/pulse/main/scripts/setup-ubuntu-vps.sh
-
-# 2. Review script & add permissions
 chmod +x setup-ubuntu-vps.sh
-
-# 3. Run it
 sudo ./setup-ubuntu-vps.sh
-```
 
-This will:
-- Install Node.js, PM2, Chromium, Redis, and RabbitMQ
-- Configure Nginx with SSL (Let's Encrypt)
-- Set up automatic backups and monitoring
-- Create systemd service for auto-start
-- Configure firewall and fail2ban
-
-After installation:
-```bash
 # View logs and QR code
 pulse logs
 
@@ -142,386 +44,51 @@ pulse logs
 pulse start|stop|restart|status|update|backup
 ```
 
-## Available Commands
+## Key Features
 
-### User Commands
-Users can send these commands to the WhatsApp bot:
+- 💸 Send and receive Lightning payments via WhatsApp
+- 🔗 Phone number-based account linking with OTP verification
+- 💬 Natural language command processing
+- 🎙️ Voice note support with Speech-to-Text
+- 🤖 AI-powered assistance with Google Gemini
+- 📊 Real-time balance checking with currency conversion
+- 👥 Contact management and payment requests
+- 🔔 Push notifications for received payments
+- 🎯 Anonymous tips and group tip splitting
+
+## Basic Commands
 
 - `link` - Connect your Flash account
-- `verify 123456` - Complete verification with OTP
-- `balance` - Check your wallet balance
-- `refresh` - Force refresh your balance
-- `receive [amount] [memo]` - Create USD Lightning invoice
-- `request [amount] from [target]` - Request payment (username/phone/contact)
-- `pay` - Pay detected Lightning invoices (with confirm/cancel options)
-- `send [amount] to [target]` - Send payment to username/phone/contact (requires confirmation)
-- `contacts` - Manage saved contacts
-- `history` - View recent transaction history
-- `pending` - View and manage pending payments (sent/received/claim)
-- `price` - Check current Bitcoin price
-- `username [new_username]` - View or set username
-- `vybz` - Share content to earn sats (3 posts/day limit)
-- `unlink` - Disconnect your Flash account
-- `consent yes/no` - Manage AI support consent
-- `voice on/off/only` - Set voice mode (on=voice+text, off=text only, only=voice only)
-- `voice list` - Show all available voices
-- `voice [name]` - Select a specific voice
-- `voice add [name] [id]` - Add custom ElevenLabs voice
-- `voice add [id]` - Add voice with auto-generated name
-- `voice remove [name]` - Remove a voice
-- `settings` - View all your settings and preferences
-- `learn` - Let Pulse ask you questions to learn about you
-- `learn category [name]` - View knowledge by category
-- `learn stats` - View your knowledge base statistics
-- `help` - Show available commands
+- `balance` - Check wallet balance
+- `send [amount] to [username/phone]` - Send payment
+- `receive [amount]` - Create Lightning invoice
+- `help` - Show all commands
 
-### Admin Commands
-Administrators can use these commands for bot management:
+For voice commands, just send a voice note!
 
-- `admin status` - Check WhatsApp connection status
-- `admin disconnect` - Disconnect current WhatsApp session
-- `admin reconnect` - Connect a new WhatsApp number (sends QR code)
-- `admin clear-session` - Clear all session data
+## Contributing
 
-## Environment Variables
+We welcome contributions! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
 
-```env
-# Flash API
-FLASH_API_URL=https://api.flashapp.me/graphql
-FLASH_API_KEY=your_auth_token_here
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-# Google Gemini AI
-GEMINI_API_KEY=your_gemini_key_here
+## Documentation
 
-# Voice Services
-ELEVENLABS_API_KEY=your_elevenlabs_key_here  # Optional: For ultra-realistic voice
-OPENAI_API_KEY=your_openai_key_here          # Optional: For Whisper speech-to-text
-GOOGLE_CLOUD_KEYFILE=/path/to/keyfile.json   # Optional: For Google Cloud TTS/STT
+- [Development Guide](docs/DEVELOPMENT.md) - Detailed development setup
+- [Architecture](docs/ARCHITECTURE.md) - System design and structure
+- [Security](docs/SECURITY.md) - Security implementation details
+- [API Documentation](docs/API.md) - API reference
+- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment
 
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=optional_password
+## Support
 
-# Admin Configuration
-ADMIN_PHONE_NUMBERS=13059244435,18764250250
-
-# Support Configuration
-SUPPORT_PHONE_NUMBER=18762909250
-
-# Nostr Configuration (optional - for vybz feature)
-NOSTR_PRIVATE_KEY=your_nsec_here
-NOSTR_RELAYS=wss://relay.damus.io,wss://nos.lol
-
-# WhatsApp (managed automatically)
-# Session stored in ./whatsapp-sessions/
-```
-
-## Architecture
-
-```
-WhatsApp User → WhatsApp Web.js → NestJS Service → Flash GraphQL API
-                                         ↓
-                                    Redis Cache
-                                         ↓
-                                    Gemini AI
-```
-
-## Development
-
-```bash
-# Run tests
-yarn test
-
-# Lint code
-yarn lint
-
-# Format code
-yarn format
-
-# Build for production
-yarn build
-```
-
-## Docker Support
-
-⚠️ **WARNING**: Docker deployment is NOT supported for Pulse. WhatsApp Web.js requires native Chrome/Chromium installation and does not work reliably in Docker containers. Please use the native PM2 deployment method described above.
-
-## Currency Conversion
-
-The service automatically converts USD wallet balances to the user's display currency using real-time exchange rates from the Flash API. Supported currencies include:
-- JMD (Jamaican Dollar)
-- EUR (Euro)
-- USD (US Dollar)
-- And more...
-
-## Security
-
-- Phone number verification required for account linking
-- Auth tokens stored securely in Redis
-- No MFA required for balance checks (user already authenticated via WhatsApp)
-- All sensitive data excluded from logs
-
-## Pending Payments Feature
-
-The pending payments feature allows Flash users to send money to anyone via WhatsApp, even if the recipient doesn't have a Flash account yet:
-
-### How it works:
-1. **Send to any phone number**: Use `send [amount] to [phone]` to send money to any WhatsApp number
-2. **Recipient gets notified**: The recipient receives a WhatsApp message with a claim code
-3. **Easy claiming**: Recipients can claim by replying "link" to create an account
-4. **Automatic credit**: Once linked, the pending payment is automatically credited
-5. **30-day expiry**: Unclaimed payments are returned to sender after 30 days
-
-### Pending payment commands:
-- `pending` - View all your pending payments
-- `pending sent` - View payments you've sent that are awaiting claim
-- `pending received` - Check if you have money waiting to be claimed
-- `pending claim [code]` - Claim a payment using the provided code
-
-### Example flow:
-```
-Sender: send 10 to +18765551234
-Bot: ✅ $10.00 sent to +18765551234. They'll receive instructions to claim it.
-
-[Recipient receives message]
-Bot: 💰 You have money waiting! @alice sent you $10.00
-     Reply "link" to claim your payment.
-     Claim code: ABC123
-
-Recipient: link
-[... account creation flow ...]
-Bot: ✅ Your $10.00 from @alice has been credited to your account!
-```
-
-## Admin Reconnection Feature
-
-The admin reconnection feature allows authorized administrators to change the WhatsApp number connected to the bot without SSH access:
-
-1. **Check Status**: `admin status` - Shows current connection info
-2. **Reconnect**: `admin reconnect` - Generates and sends QR code via WhatsApp
-3. **Scan QR**: Open WhatsApp on new device and scan the QR code
-4. **Confirmation**: Bot sends welcome message from new number
-
-This seamless process ensures zero downtime during number changes.
-
-## Support Mode
-
-The AI-powered support mode provides seamless handoff to human agents when users need assistance:
-
-### How it works:
-1. **Automatic Detection**: The AI detects when users request human support (e.g., "speak to an agent", "human help")
-2. **Context Gathering**: Collects user info (username, balance, npub, recent conversation)
-3. **Smart Routing**: Routes messages between multiple users and support simultaneously
-4. **Easy Management**: Support agents reply with `@phone: message` to specific users
-5. **Session Control**: Users type "exit support" to return to normal bot functions
-
-### Support Agent Features:
-- View all active sessions: Type `list` or `sessions`
-- Reply to specific user: `@13059244435: Hello, how can I help?`
-- End support session: `@13059244435: exit support`
-- Automatic session info with each new connection
-
-## Anonymous Tips
-
-Send tips anonymously through direct messages:
-
-### Features:
-- **True Anonymity**: Tips sent via DM ensure sender identity is hidden
-- **Group Tip Splitting**: Distribute tips evenly among Flash users in a group
-- **Flexible Amounts**: Send any amount with optional messages
-- **Privacy First**: Recipients only see "Someone sent you a tip"
-
-### Tip Commands:
-- `tip @username 5` - Send anonymous 5 USD tip
-- `tip @alice 10 great job!` - Include a message with tip
-- `tip group "Flash Users" 20` - Split $20 among all Flash users in the group
-- `tip group "Dev Team" 50 thanks everyone` - Group tip with message
-
-## Voice Features
-
-Pulse supports advanced voice interactions for a more natural user experience:
-
-### Voice Input (Speech-to-Text):
-- **Whisper AI**: Primary provider for accurate transcription (requires OpenAI API key)
-- **Google Cloud Speech**: Automatic fallback when Whisper is unavailable
-- **Natural Language**: Understands commands in conversational style
-  - "Send ten dollars to alice" → `send 10 to alice`
-  - "What's my balance?" → `balance`
-  - "I want to receive twenty five dollars" → `receive 25`
-
-### Voice Output (Text-to-Speech):
-- **ElevenLabs**: Ultra-realistic AI voices for voice-only mode users
-- **Google Cloud TTS**: High-quality Chirp3-HD voices as fallback
-- **Free TTS API**: Basic voice for users without premium services
-
-### Voice Modes:
-- `voice status` - Check current voice settings
-- `voice on` - Enable voice for AI responses with keywords
-- `voice off` - Disable all voice responses
-- `voice only` - Receive only voice responses (no text)
-
-### Dynamic Voice Management:
-- `voice list` - Show all available voices
-- `voice add [name] [voiceId]` - Add a new ElevenLabs voice
-- `voice remove [name]` - Remove a voice from the system
-- `voice [name]` - Select a voice by name
-
-### Examples:
-- `voice add sarah EXAVITQu4vr4xnSDxMaL` - Add Sarah's voice
-- `voice sarah` - Switch to Sarah's voice
-- `voice add morgan 21m00Tcm4TlvDq8ikWAM` - Add Morgan Freeman's voice
-- `voice morgan` - Use Morgan's voice
-
-### Natural Language Processing:
-- 200+ command pattern variations
-- Typo correction and smart suggestions
-- Context-aware responses
-- Transaction details with voice narration
-
-## Push Notifications
-
-The service implements real-time payment notifications with a hybrid approach:
-
-### How it works:
-1. **WebSocket Subscriptions**: Primary real-time connection to Flash API for instant updates
-2. **RabbitMQ Fallback**: Reliable message queue ensures notifications are never missed
-3. **Automatic Setup**: Users are subscribed when they link their account
-4. **Smart Deduplication**: Prevents duplicate notifications across both channels
-5. **Rich Notifications**: Shows amount in BTC and fiat, sender info, and updated balance
-
-### Notification Features:
-- Instant WhatsApp message when payment is received
-- Shows payment amount in both BTC and user's preferred currency
-- Displays sender's username and memo if provided
-- Includes updated wallet balance
-- Works whether app is active or not
-
-### Technical Architecture:
-```
-Flash API → WebSocket/RabbitMQ → PaymentNotificationService → WhatsApp Message
-```
-
-## Roadmap
-
-- [x] Payment sending functionality
-- [x] Transaction history
-- [x] Lightning invoice detection and payment
-- [x] Contact management
-- [x] Admin session management
-- [x] Pending payments for non-Flash users
-- [x] Push notifications for received payments
-- [ ] Multi-language support
-- [ ] WhatsApp Business API migration
-- [ ] Group chat support
-
-## Production Deployment
-
-### Minimum Recommended Specs with DigitalOcean pricing as of July 2025:
-
-For Development/Testing:
-
-- CPU: 1 vCPU
-- RAM: 2GB
-- Storage: 25GB SSD
-- Droplet: Basic Regular Intel ($12/month)
-
-For Production (Small-Medium Scale):
-
-- CPU: 2 vCPUs
-- RAM: 4GB
-- Storage: 80GB SSD
-- Droplet: Basic Regular Intel ($24/month)
-
-For Production (High Traffic):
-
-- CPU: 4 vCPUs
-- RAM: 8GB
-- Storage: 160GB SSD
-- Droplet: General Purpose ($48/month)
-
-  
-### 🚀 Production Deployment Steps
-
-⚠️ **IMPORTANT**: 
-- Use Ubuntu LTS versions only (22.04 LTS or 24.04 LTS)
-- Docker is NOT supported due to WhatsApp Web.js browser requirements
-- Avoid interim Ubuntu releases (like 24.10) as they lack third-party repository support
-
-Deploy Pulse on your Ubuntu VPS:
-
-```bash
-# 1. Download the setup script
-wget https://raw.githubusercontent.com/lnflash/pulse/main/scripts/setup-ubuntu-vps.sh
-
-# 2. Review script & add permissions
-chmod +x setup-ubuntu-vps.sh
-
-# 3. Run it
-sudo ./setup-ubuntu-vps.sh
-```
-
-This automated script handles the complete production setup including SSL, PM2, native Chromium, Redis, RabbitMQ, security, and monitoring.
-
-### Documentation
-
-- [Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT_GUIDE.md) - Complete deployment instructions
-- [Admin Panel Guide](docs/ADMIN_PANEL.md) - Admin dashboard documentation
-- [Security Checklist](SECURITY_CHECKLIST.md) - Pre-deployment security verification
-- [Security Roadmap Summary](docs/SECURITY_ROADMAP_SUMMARY.md) - Executive security overview
-- [Complete Security Roadmap](docs/SECURITY_HARDENING_ROADMAP_COMPLETE.md) - Detailed security implementation plan
-- [Knowledge Base Security](docs/SECURITY_HARDENING_ROADMAP.md) - Security for learning features
-- [Environment Template](.env.example) - Configuration template
-
-### Post-Deployment Configuration
-
-After running the setup script, configure your API credentials in `/opt/pulse/.env`:
-- `FLASH_API_KEY` - Your Flash API key
-- `ADMIN_PHONE_NUMBERS` - Admin phone numbers
-- `SUPPORT_PHONE_NUMBER` - Support routing number
-- `GEMINI_API_KEY` - Google AI key (optional)
-- `NOSTR_PRIVATE_KEY` - Nostr nsec (optional)
-- `NOSTR_PULSE_NPUB` - Bot's Nostr npub (optional)
-
-## Security Features
-
-Pulse implements enterprise-grade security:
-
-- **🔐 Encryption at Rest**: All sensitive data encrypted with AES-256-GCM
-- **✅ Input Validation**: Comprehensive DTOs with custom validators
-- **🚦 Rate Limiting**: Per-endpoint and per-user rate limits
-- **🔑 Secure Sessions**: Encrypted session storage with rotation
-- **🛡️ Webhook Security**: HMAC signature validation
-- **🔒 Secrets Management**: Environment-based configuration with validation
-
-### Security Roadmap
-
-We're committed to continuous security improvement. Our comprehensive security roadmap includes:
-
-**Phase 1 (Current)**: Foundation security with encryption, authentication, and basic protections
-**Phase 2 (Q1 2025)**: Advanced threat detection and compliance preparations  
-**Phase 3 (Q2 2025)**: Enterprise security features and certifications
-**Phase 4 (Q3 2025)**: Full compliance (SOC 2, ISO 27001) and advanced protections
-
-For detailed security documentation, see:
-- [Security Roadmap Summary](docs/SECURITY_ROADMAP_SUMMARY.md) - Quick overview for executives
-- [Complete Security Roadmap](docs/SECURITY_HARDENING_ROADMAP_COMPLETE.md) - Detailed implementation plan
-- [Security Implementation Guide](docs/SECURITY.md)
-- [Security Improvements](docs/SECURITY_IMPROVEMENTS.md)
-- [Known Vulnerabilities](docs/KNOWN_VULNERABILITIES.md)
-
-### Generating Secure Keys
-
-For production deployment, generate secure keys:
-
-```bash
-# Generate all security keys (encryption, JWT, session, webhook, Nostr)
-./scripts/generate-secure-keys.sh
-
-# Generate only Nostr keys with detailed instructions
-./scripts/generate-nostr-keys.sh
-```
+- Create an issue on [GitHub](https://github.com/lnflash/pulse/issues)
+- WhatsApp support: Send "support" to the bot
 
 ## License
 
-MIT License - Island Bitcoin LLC 
+MIT License - Island Bitcoin LLC
