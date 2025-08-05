@@ -173,10 +173,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       this.logger.error(`Failed to get encrypted value for key ${key}:`);
       this.logger.error(error);
-      
+
       // Delete the corrupted key to prevent repeated errors
       await this.redisClient.del(key);
-      
+
       return null;
     }
   }

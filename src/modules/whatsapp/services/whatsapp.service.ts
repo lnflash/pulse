@@ -156,6 +156,36 @@ export class WhatsappService {
       const whatsappId = messageData.whatsappId || this.extractWhatsappId(messageData.from);
       const phoneNumber = this.normalizePhoneNumber(messageData.from);
 
+      // Check if message is from support agent
+      const supportPhone = this.configService.get<string>('SUPPORT_PHONE_NUMBER');
+      if (supportPhone) {
+        const normalizedSupportPhone = supportPhone.replace(/[\s\-+]/g, '');
+        const normalizedSenderPhone = phoneNumber.replace(/[\s\-+]/g, '');
+
+        // Also check the raw WhatsApp ID format
+        const senderWithoutSuffix = whatsappId.replace('@c.us', '').replace(/[\s\-+]/g, '');
+
+        if (
+          normalizedSenderPhone === normalizedSupportPhone ||
+          normalizedSenderPhone.endsWith(normalizedSupportPhone) ||
+          normalizedSupportPhone.endsWith(normalizedSenderPhone) ||
+          senderWithoutSuffix === normalizedSupportPhone ||
+          senderWithoutSuffix.endsWith(normalizedSupportPhone) ||
+          normalizedSupportPhone.endsWith(senderWithoutSuffix)
+        ) {
+          // This is a message from support agent
+          this.logger.debug(`Support agent message detected from ${whatsappId}`);
+          const result = await this.supportModeService.routeMessage(
+            whatsappId,
+            messageData.text,
+            true,
+          );
+          if (result.routed) {
+            return result.response || '✉️ Support message processed...';
+          }
+        }
+      }
+
       // Parse command from message (with voice flag if it came from voice)
       const command = this.commandParserService.parseCommand(
         messageData.text,

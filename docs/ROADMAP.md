@@ -3,7 +3,7 @@
 ## Mission
 Make Lightning payments accessible to everyone through familiar messaging platforms, with deployment as simple as possible across any infrastructure.
 
-## Current Status (v1.9.9) ✅
+## Current Status (v2.0.0) ✅
 - WhatsApp Web.js integration
 - Account linking with OTP verification
 - Balance checking with multi-currency support
@@ -19,9 +19,21 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
 - ✅ Admin panel for monitoring
 - ✅ Production deployment scripts
 
-## Phase 1: Universal Deployment (Q1 2025)
+## Phase 1: WhatsApp Business API Migration (Q1 2025)
 
-### v2.0.0 - Docker-First Architecture
+### v2.0.0 - Business API Foundation
+**Goal:** Migrate from WhatsApp Web.js to official Business API for stability and Docker support
+
+#### Migration Requirements
+- [ ] WhatsApp Business API integration
+- [ ] Cloud API webhook handling
+- [ ] Session management refactoring
+- [ ] Message template support
+- [ ] Media handling updates
+
+## Phase 2: Universal Deployment (Q2 2025)
+
+### v2.1.0 - Docker-First Architecture
 **Goal:** One-click deployment on any platform in under 60 seconds
 
 #### Core Infrastructure
@@ -61,9 +73,9 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
 - [ ] QR code config sharing
 - [ ] Auto-discovery of services
 
-## Phase 2: Messaging Layer Abstraction (Q1-Q2 2025)
+## Phase 3: Messaging Layer Abstraction (Q2-Q3 2025)
 
-### v2.1.0 - Platform-Agnostic Architecture
+### v2.2.0 - Platform-Agnostic Architecture
 **Goal:** Support any messaging platform with minimal code changes
 
 #### Architecture Refactoring
@@ -89,6 +101,11 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
   - [ ] WhatsApp Web.js (existing)
   - [ ] WhatsApp Business API
   - [ ] WhatsApp Cloud API
+- [ ] **Discord**:
+  - [ ] Bot API integration
+  - [ ] Slash commands support
+  - [ ] Server/DM management
+  - [ ] Rich embeds for payments
 - [ ] **Telegram**:
   - [ ] Bot API integration
   - [ ] Inline keyboards for commands
@@ -103,30 +120,30 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
   - [ ] NIP-04 encrypted DMs
   - [ ] Lightning address integration
 
-## Phase 3: Enhanced Features (Q2-Q3 2025)
+## Phase 4: Enhanced Features (Q3-Q4 2025)
 
-### v2.2.0 - Rich Media & Interactions
+### v2.3.0 - Rich Media & Interactions
 - [ ] Voice message transcription and commands
 - [ ] Image-based invoice scanning
 - [ ] Video content sharing
 - [ ] Interactive payment buttons
 - [ ] Rich payment receipts with charts
 
-### v2.3.0 - Advanced Payment Features
+### v2.4.0 - Advanced Payment Features
 - [ ] Scheduled payments
 - [ ] Recurring payments/subscriptions
 - [ ] Payment splitting for groups
 - [ ] Multi-signature payment approval
 - [ ] Payment request expiration
 
-### v2.4.0 - AI Enhancement
+### v2.5.0 - AI Enhancement
 - [ ] Multi-provider AI support (OpenAI, Anthropic, local LLMs)
 - [ ] Context-aware responses
 - [ ] Financial insights and analytics
 - [ ] Spending pattern analysis
 - [ ] Natural language payment commands
 
-## Phase 4: Enterprise & Scale (Q3-Q4 2025)
+## Phase 5: Enterprise & Scale (Q4 2025 - Q1 2026)
 
 ### v3.0.0 - Business Tools
 - [ ] Merchant dashboard
@@ -151,14 +168,24 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
 - [ ] End-to-end encryption for all platforms
 - [ ] Hardware security module (HSM) support
 
-## Phase 5: Ecosystem Integration (2026)
+## Phase 6: Bitcoin Ecosystem Integration (2026)
 
-### v4.0.0 - DeFi Integration
-- [ ] Liquidity pool access
-- [ ] Yield farming notifications
-- [ ] Automated DCA (Dollar Cost Averaging)
-- [ ] Cross-chain swaps
-- [ ] Stablecoin support
+### v4.0.0 - On-chain & eCash Support
+- [ ] On-chain Bitcoin support
+  - [ ] UTXO management
+  - [ ] Fee estimation
+  - [ ] Batch transactions
+  - [ ] Hardware wallet integration
+- [ ] **Cashu Integration**:
+  - [ ] Mint discovery
+  - [ ] Token management
+  - [ ] Offline transactions
+  - [ ] Privacy-preserving payments
+- [ ] **Fedimint Support**:
+  - [ ] Federation discovery
+  - [ ] Guardian communication
+  - [ ] Multi-sig coordination
+  - [ ] Community wallet features
 
 ### v4.1.0 - Plugin System
 - [ ] Plugin marketplace
@@ -170,22 +197,22 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
 ## Implementation Priorities
 
 ### Immediate (Next 30 days)
-1. Create Docker Hub organization and CI/CD pipeline
-2. Implement messaging abstraction layer
-3. Create Umbrel package
-4. Launch https://pulse.sh installer site
+1. Begin WhatsApp Business API migration planning
+2. Research Business API requirements and costs
+3. Create migration strategy document
+4. Set up Business API test environment
 
 ### Short-term (Next 90 days)
-1. Complete all one-click deployment options
-2. Add Telegram support
-3. Create configuration wizard
-4. Submit to app stores (Umbrel, Start9)
+1. Complete WhatsApp Business API migration
+2. Create Docker Hub organization and CI/CD pipeline
+3. Implement messaging abstraction layer
+4. Add Discord support as proof of concept
 
 ### Medium-term (Next 180 days)
-1. WhatsApp Business API migration
-2. Voice message support
-3. Rich media handling
-4. Enterprise features
+1. Docker deployment infrastructure
+2. Create Umbrel and Start9 packages
+3. Discord integration completion
+4. Voice message enhancements
 
 ## Success Metrics
 

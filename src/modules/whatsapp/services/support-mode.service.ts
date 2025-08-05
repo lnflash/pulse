@@ -78,10 +78,14 @@ export class SupportModeService {
       // Create conversation summary
       const conversationSummary = this.createConversationSummary(recentConversation);
 
-      // Create support session
+      // Create support session - ensure WhatsApp ID is properly formatted
+      const formattedUserWhatsappId = userWhatsappId.includes('@')
+        ? userWhatsappId
+        : `${userWhatsappId}@c.us`;
+
       const supportSession: SupportSession = {
         userId: userSession?.flashUserId || 'unlinked',
-        userWhatsappId,
+        userWhatsappId: formattedUserWhatsappId,
         supportAgentId: this.SUPPORT_PHONE,
         startTime: new Date(),
         status: 'active',
@@ -89,7 +93,7 @@ export class SupportModeService {
         userInfo,
       };
 
-      // Store session
+      // Store session - use original WhatsApp ID as key for consistency
       await this.storeSupportSession(userWhatsappId, supportSession);
 
       // Send notification to support agent
@@ -172,8 +176,9 @@ export class SupportModeService {
             // Send error back to support
             await this.sendToSupport(
               `❌ No active support session found for ${targetPhone}\n\n` +
-                `Active sessions:\n${await this.getActiveSessions()}\n\n` +
-                `💡 Make sure to use the exact phone number shown in the active sessions list`,
+                `Active sessions:\n${await this.getActiveSessionsDetailed()}\n\n` +
+                `💡 Make sure to use the exact phone number shown in the active sessions list\n` +
+                `📝 Format: @phone: message (e.g., @1234567890: Hello)`,
             );
             return { routed: true };
           }
@@ -187,10 +192,33 @@ export class SupportModeService {
           }
 
           // Route message to specific user
-          await this.whatsappWebService?.sendMessage(
-            actualWhatsappId,
-            `👨‍💼 *Support Agent*: ${actualMessage}`,
-          );
+          // Ensure WhatsApp ID has the correct format
+          const formattedWhatsappId = actualWhatsappId.includes('@')
+            ? actualWhatsappId
+            : `${actualWhatsappId}@c.us`;
+
+          this.logger.debug(`Routing support message to user: ${formattedWhatsappId}`);
+          this.logger.debug(`Message: ${actualMessage}`);
+
+          try {
+            await this.whatsappWebService?.sendMessage(
+              formattedWhatsappId,
+              `👨‍💼 *Support Agent*: ${actualMessage}`,
+            );
+
+            this.logger.log(`Support message sent successfully to ${formattedWhatsappId}`);
+
+            // Send confirmation to support agent
+            await this.sendToSupport(
+              `✅ Message delivered to @${targetPhone}\n` +
+                `📝 "${actualMessage.substring(0, 50)}${actualMessage.length > 50 ? '...' : ''}"`,
+            );
+          } catch (error) {
+            this.logger.error(`Failed to send support message to ${formattedWhatsappId}:`, error);
+            await this.sendToSupport(
+              `❌ Failed to send message to user ${targetPhone}\n` + `Error: ${error.message}`,
+            );
+          }
 
           // Log the message
           await this.logSupportMessage(actualWhatsappId, actualMessage, true);
