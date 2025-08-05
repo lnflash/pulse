@@ -180,6 +180,7 @@ export class WhatsappService {
             whatsappId,
             messageData.text,
             true,
+            messageData.instancePhone
           );
           if (result.routed) {
             return result.response || '✉️ Support message processed...';
@@ -268,7 +269,12 @@ _Your phone number is hidden for privacy in this group._`;
 
       // Check if user is in support mode (using pre-fetched status)
       if (supportModeStatus) {
-        const result = await this.supportModeService.routeMessage(whatsappId, messageData.text);
+        const result = await this.supportModeService.routeMessage(
+          whatsappId, 
+          messageData.text,
+          false,
+          messageData.instancePhone
+        );
         if (result.routed) {
           return result.response || '✉️ Message sent to support...';
         }

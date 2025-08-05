@@ -98,6 +98,8 @@ export class SupportModeService {
 
       // Store session - use original WhatsApp ID as key for consistency
       await this.storeSupportSession(userWhatsappId, supportSession);
+      
+      this.logger.debug(`Support session created for ${userWhatsappId} with instance ${userInstancePhone}`);
 
       // Send notification to support agent
       const supportMessage = this.formatSupportHandoffMessage(supportSession);
@@ -161,6 +163,7 @@ export class SupportModeService {
     fromWhatsappId: string,
     message: string,
     isFromSupport: boolean = false,
+    instancePhone?: string,
   ): Promise<{ routed: boolean; response?: string }> {
     try {
       if (isFromSupport) {
@@ -202,9 +205,14 @@ export class SupportModeService {
 
           this.logger.debug(`Routing support message to user: ${formattedWhatsappId}`);
           this.logger.debug(`Message: ${actualMessage}`);
+          this.logger.debug(`Using instance: ${targetSession.userInstancePhone || 'not set'}`);
 
           try {
             // Use the user's instance to send the message
+            if (!targetSession.userInstancePhone) {
+              this.logger.warn(`No instance phone stored for session, will use default routing`);
+            }
+            
             await this.whatsappWebService?.sendMessage(
               formattedWhatsappId,
               `👨‍💼 *Support Agent*: ${actualMessage}`,
@@ -212,7 +220,7 @@ export class SupportModeService {
               targetSession.userInstancePhone, // Use the stored instance
             );
 
-            this.logger.log(`Support message sent successfully to ${formattedWhatsappId} via instance ${targetSession.userInstancePhone}`);
+            this.logger.log(`Support message sent successfully to ${formattedWhatsappId} via instance ${targetSession.userInstancePhone || 'default'}`);
 
             // Send confirmation to support agent
             await this.sendToSupport(
@@ -257,6 +265,13 @@ export class SupportModeService {
 
         if (!session) {
           return { routed: false };
+        }
+
+        // Update instance phone if provided and different
+        if (instancePhone && session.userInstancePhone !== instancePhone) {
+          this.logger.debug(`Updating user instance from ${session.userInstancePhone} to ${instancePhone}`);
+          session.userInstancePhone = instancePhone;
+          await this.storeSupportSession(fromWhatsappId, session);
         }
 
         // Check for exit command

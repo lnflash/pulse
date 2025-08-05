@@ -209,6 +209,7 @@ export class WhatsAppWebService
   ): Promise<any> {
     // If instance is specified, use it
     if (instancePhone) {
+      this.logger.debug(`Sending message to ${to} via specified instance: ${instancePhone}`);
       return this.messageRouter.sendMessage(instancePhone, to, message);
     }
 
@@ -218,6 +219,7 @@ export class WhatsAppWebService
       throw new Error('No WhatsApp instances are ready');
     }
 
+    this.logger.debug(`Sending message to ${to} via best instance: ${bestInstance}`);
     return this.messageRouter.sendMessage(bestInstance, to, message);
   }
 
