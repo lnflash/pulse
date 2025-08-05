@@ -833,4 +833,121 @@ describe('WhatsappService', () => {
       });
     });
   });
+
+  describe('Greeting and Casual Message Detection', () => {
+    beforeEach(() => {
+      // Mock all dependencies to return expected values
+      jest.spyOn(sessionService, 'getSessionByWhatsappId').mockResolvedValue(null);
+      jest.spyOn(_redisService, 'get').mockResolvedValue(null);
+    });
+
+    it('should detect and respond to "ello" greeting for logged out user', async () => {
+      const mockCommand = {
+        type: CommandType.UNKNOWN,
+        args: {},
+        rawText: 'ello',
+      };
+      jest.spyOn(commandParserService, 'parseCommand').mockReturnValue(mockCommand);
+
+      const response = await service.processCloudMessage({
+        from: '+18765551234',
+        text: 'ello',
+        messageId: 'test_msg_greeting',
+        timestamp: new Date().toISOString(),
+      });
+
+      expect(response).toContain('👋 Hello! Welcome to Flash!');
+      expect(response).toContain('Type `link` to connect your Flash account');
+    });
+
+    it('should detect and respond to "hi" greeting for logged out user', async () => {
+      const mockCommand = {
+        type: CommandType.UNKNOWN,
+        args: {},
+        rawText: 'hi',
+      };
+      jest.spyOn(commandParserService, 'parseCommand').mockReturnValue(mockCommand);
+
+      const response = await service.processCloudMessage({
+        from: '+18765551234',
+        text: 'hi',
+        messageId: 'test_msg_hi',
+        timestamp: new Date().toISOString(),
+      });
+
+      expect(response).toContain('👋 Hello! Welcome to Flash!');
+      expect(response).toContain('⚡ I\'m your Lightning payment assistant');
+    });
+
+    it('should detect and respond to "hey" greeting for logged in user', async () => {
+      const mockSession = {
+        sessionId: 'session123',
+        whatsappId: '+18765551234',
+        phoneNumber: '18765551234',
+        flashUserId: 'user123',
+        flashAuthToken: 'auth-token',
+        isVerified: true,
+        createdAt: new Date(),
+        expiresAt: new Date(),
+        lastActivity: new Date(),
+        mfaVerified: false,
+        consentGiven: true,
+      };
+      jest.spyOn(sessionService, 'getSessionByWhatsappId').mockResolvedValue(mockSession);
+
+      const mockCommand = {
+        type: CommandType.UNKNOWN,
+        args: {},
+        rawText: 'hey',
+      };
+      jest.spyOn(commandParserService, 'parseCommand').mockReturnValue(mockCommand);
+
+      const response = await service.processCloudMessage({
+        from: '+18765551234',
+        text: 'hey',
+        messageId: 'test_msg_hey_logged_in',
+        timestamp: new Date().toISOString(),
+      });
+
+      expect(response).toContain('👋 Hey there! How can I help you today?');
+      expect(response).toContain('Type `help` to see what I can do');
+    });
+
+    it('should detect emoji greetings', async () => {
+      const mockCommand = {
+        type: CommandType.UNKNOWN,
+        args: {},
+        rawText: '👋',
+      };
+      jest.spyOn(commandParserService, 'parseCommand').mockReturnValue(mockCommand);
+
+      const response = await service.processCloudMessage({
+        from: '+18765551234',
+        text: '👋',
+        messageId: 'test_msg_wave_emoji',
+        timestamp: new Date().toISOString(),
+      });
+
+      expect(response).toContain('👋 Hello! Welcome to Flash!');
+    });
+
+    it('should handle non-greeting unknown commands differently', async () => {
+      const mockCommand = {
+        type: CommandType.UNKNOWN,
+        args: {},
+        rawText: 'random gibberish',
+      };
+      jest.spyOn(commandParserService, 'parseCommand').mockReturnValue(mockCommand);
+
+      const response = await service.processCloudMessage({
+        from: '+18765551234',
+        text: 'random gibberish',
+        messageId: 'test_msg_unknown',
+        timestamp: new Date().toISOString(),
+      });
+
+      expect(response).toContain('I don\'t recognize that command');
+      expect(response).toContain('Type `help` to see available commands');
+    });
+  });
 });

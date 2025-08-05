@@ -668,6 +668,11 @@ _Your phone number is hidden for privacy in this group._`;
             if (pluginResponse) {
               return pluginResponse;
             }
+
+            // Check for greetings and casual messages early
+            if (this.isGreetingOrCasualMessage(command.rawText)) {
+              return this.getUnknownCommandMessage(session, whatsappId, isGroup, command.rawText);
+            }
           }
           // Check if this might be a Flash username response to pending send
           const pendingSendKey = `pending_send:${whatsappId}`;
@@ -776,7 +781,7 @@ _Your phone number is hidden for privacy in this group._`;
             }
           }
 
-          return this.getUnknownCommandMessage(session, whatsappId, isGroup);
+          return this.getUnknownCommandMessage(session, whatsappId, isGroup, command.rawText);
         }
       }
     } catch (error) {
@@ -3643,16 +3648,64 @@ _By using Pulse, you agree to AI-assisted message processing to help serve you b
     session: UserSession | null,
     whatsappId?: string,
     isGroup?: boolean,
+    rawText?: string,
   ): Promise<string | { text: string; voice?: Buffer; voiceOnly?: boolean }> {
     let message: string;
 
-    // Provide a simple message without hints for all cases
-    message = "I don't understand that command. Type `help` to see available commands.";
+    // Check if this looks like a greeting or casual message
+    if (rawText && this.isGreetingOrCasualMessage(rawText)) {
+      if (session?.isVerified) {
+        // Logged in user - friendly greeting
+        message = "👋 Hey there! How can I help you today?\n\nType `help` to see what I can do, or just tell me what you need!";
+      } else {
+        // Not logged in - friendly greeting with onboarding
+        message = "👋 Hello! Welcome to Flash!\n\n⚡ I'm your Lightning payment assistant. To get started:\n\n🔗 Type `link` to connect your Flash account\n💡 Type `help` to see what I can do\n\nOnce connected, you can send money, check balances, and much more!";
+      }
+    } else {
+      // Not a greeting - provide helpful guidance
+      if (session?.isVerified) {
+        message = "I'm not sure what you're looking for. Type `help` to see available commands, or just tell me what you'd like to do!";
+      } else {
+        message = "I don't recognize that command. Type `help` to see available commands, or `link` to connect your Flash account first.";
+      }
+    }
 
     if (whatsappId && !isGroup) {
       return await this.convertToVoiceOnlyResponse(message, whatsappId);
     }
     return message;
+  }
+
+  /**
+   * Check if message looks like a greeting or casual message
+   */
+  private isGreetingOrCasualMessage(text: string): boolean {
+    const lowerText = text.toLowerCase().trim();
+    
+    // Common greetings and casual messages
+    const greetingPatterns = [
+      // Greetings
+      /^(hi|hello|hey|hiya|sup|yo|ello)$/,
+      /^(good morning|good afternoon|good evening)$/,
+      /^(morning|afternoon|evening)$/,
+      /^(what's up|whats up|wassup)$/,
+      /^(how are you|how you doing)$/,
+      
+      // Casual expressions
+      /^(thanks|thank you|ty)$/,
+      /^(bye|goodbye|see ya|later)$/,
+      /^(ok|okay|cool|nice)$/,
+      /^(wow|awesome|great)$/,
+      
+      // Test messages
+      /^(test|testing)$/,
+      
+      // Single emoji or punctuation
+      /^[👋🙂😊😃😄😀🤔❤️💯🔥👍]+$/,
+      /^[.!?]+$/,
+    ];
+
+    return greetingPatterns.some(pattern => pattern.test(lowerText));
   }
 
   /**
