@@ -9,19 +9,68 @@ export class SanitizeInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest<Request>();
 
-    // Sanitize request body
-    if (request.body && typeof request.body === 'object') {
-      request.body = this.sanitizeObject(request.body);
-    }
+    try {
+      // Sanitize request body
+      if (request.body && typeof request.body === 'object') {
+        const sanitizedBody = this.sanitizeObject(request.body);
+        // Try to assign, but if it fails (read-only), create a new property
+        try {
+          request.body = sanitizedBody;
+        } catch (error) {
+          // If body is read-only, store sanitized version in a different property
+          (request as any).sanitizedBody = sanitizedBody;
+          // Override the body getter if possible
+          Object.defineProperty(request, 'body', {
+            get: () => sanitizedBody,
+            configurable: true,
+          });
+        }
+      }
 
-    // Sanitize query parameters
-    if (request.query && typeof request.query === 'object') {
-      request.query = this.sanitizeObject(request.query);
-    }
+      // Sanitize query parameters
+      if (request.query && typeof request.query === 'object') {
+        const sanitizedQuery = this.sanitizeObject(request.query);
+        try {
+          request.query = sanitizedQuery;
+        } catch (error) {
+          // If query is read-only, store sanitized version in a different property
+          (request as any).sanitizedQuery = sanitizedQuery;
+          // Override the query getter if possible
+          try {
+            Object.defineProperty(request, 'query', {
+              get: () => sanitizedQuery,
+              configurable: true,
+            });
+          } catch (defineError) {
+            // If we can't override, at least log a warning
+            this.logger.warn('Unable to sanitize query parameters - property is read-only');
+          }
+        }
+      }
 
-    // Sanitize params
-    if (request.params && typeof request.params === 'object') {
-      request.params = this.sanitizeObject(request.params);
+      // Sanitize params
+      if (request.params && typeof request.params === 'object') {
+        const sanitizedParams = this.sanitizeObject(request.params);
+        try {
+          request.params = sanitizedParams;
+        } catch (error) {
+          // If params is read-only, store sanitized version in a different property
+          (request as any).sanitizedParams = sanitizedParams;
+          // Override the params getter if possible
+          try {
+            Object.defineProperty(request, 'params', {
+              get: () => sanitizedParams,
+              configurable: true,
+            });
+          } catch (defineError) {
+            // If we can't override, at least log a warning
+            this.logger.warn('Unable to sanitize params - property is read-only');
+          }
+        }
+      }
+    } catch (error) {
+      // Log the error but don't fail the request
+      this.logger.error(`Error in sanitize interceptor: ${error.message}`, error.stack);
     }
 
     return next.handle();
