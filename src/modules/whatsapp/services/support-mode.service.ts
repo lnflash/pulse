@@ -11,6 +11,7 @@ import { FlashApiService } from '../../flash-api/flash-api.service';
 export interface SupportSession {
   userId: string;
   userWhatsappId: string;
+  userInstancePhone?: string; // Track which instance the user is on
   supportAgentId: string;
   startTime: Date;
   endTime?: Date;
@@ -61,6 +62,7 @@ export class SupportModeService {
     userWhatsappId: string,
     userSession: UserSession | null,
     recentConversation: string[],
+    userInstancePhone?: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       // Check if already in support mode
@@ -86,6 +88,7 @@ export class SupportModeService {
       const supportSession: SupportSession = {
         userId: userSession?.flashUserId || 'unlinked',
         userWhatsappId: formattedUserWhatsappId,
+        userInstancePhone, // Store the instance phone
         supportAgentId: this.SUPPORT_PHONE,
         startTime: new Date(),
         status: 'active',
@@ -201,12 +204,15 @@ export class SupportModeService {
           this.logger.debug(`Message: ${actualMessage}`);
 
           try {
+            // Use the user's instance to send the message
             await this.whatsappWebService?.sendMessage(
               formattedWhatsappId,
               `👨‍💼 *Support Agent*: ${actualMessage}`,
+              undefined,
+              targetSession.userInstancePhone, // Use the stored instance
             );
 
-            this.logger.log(`Support message sent successfully to ${formattedWhatsappId}`);
+            this.logger.log(`Support message sent successfully to ${formattedWhatsappId} via instance ${targetSession.userInstancePhone}`);
 
             // Send confirmation to support agent
             await this.sendToSupport(
@@ -512,7 +518,8 @@ export class SupportModeService {
             const duration = this.calculateDuration(session.startTime);
             sessions.push(
               `• @${session.userInfo.phoneNumber} - ${session.userInfo.username || 'No username'} (${duration})\n` +
-                `  WhatsApp ID: ${session.userWhatsappId}`,
+                `  WhatsApp ID: ${session.userWhatsappId}\n` +
+                `  Instance: ${session.userInstancePhone || 'unknown'}`,
             );
           }
         }

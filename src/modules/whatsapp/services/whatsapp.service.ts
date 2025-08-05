@@ -151,6 +151,7 @@ export class WhatsappService {
     whatsappId?: string;
     isGroup?: boolean;
     groupId?: string;
+    instancePhone?: string;
   }): Promise<string | { text: string; media?: Buffer; voice?: Buffer; voiceOnly?: boolean }> {
     try {
       const whatsappId = messageData.whatsappId || this.extractWhatsappId(messageData.from);
@@ -281,6 +282,7 @@ _Your phone number is hidden for privacy in this group._`;
           whatsappId,
           session,
           recentMessages,
+          messageData.instancePhone,
         );
         return supportResult.message;
       }

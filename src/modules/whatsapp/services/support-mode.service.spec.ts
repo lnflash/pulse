@@ -128,7 +128,7 @@ describe('SupportModeService', () => {
       const result = await service.initiateSupportMode('1234567890@c.us', mockUserSession, [
         'User: I need help',
         'Bot: How can I help?',
-      ]);
+      ], 'instance123');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Support Mode Activated');
@@ -150,7 +150,7 @@ describe('SupportModeService', () => {
     it('should prevent duplicate support sessions', async () => {
       redisService.get.mockResolvedValue('existing-session'); // Already in support mode
 
-      const result = await service.initiateSupportMode('1234567890@c.us', mockUserSession, []);
+      const result = await service.initiateSupportMode('1234567890@c.us', mockUserSession, [], 'instance123');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('already connected to a support agent');
@@ -161,6 +161,7 @@ describe('SupportModeService', () => {
     const mockSession = {
       userId: 'user123',
       userWhatsappId: '1234567890@c.us',
+      userInstancePhone: 'instance123',
       supportAgentId: '+18762909250',
       startTime: new Date(),
       status: 'active' as const,
@@ -208,6 +209,8 @@ describe('SupportModeService', () => {
       expect(whatsappWebService.sendMessage).toHaveBeenCalledWith(
         '1234567890@c.us',
         '👨‍💼 *Support Agent*: I can help you with that payment issue',
+        undefined,
+        'instance123',
       );
     });
 
