@@ -950,4 +950,118 @@ describe('WhatsappService', () => {
       expect(response).toContain('Type `help` to see available commands');
     });
   });
+
+  describe('vCard Contact Handling', () => {
+    beforeEach(() => {
+      jest.spyOn(_redisService, 'get').mockResolvedValue(null);
+      jest.spyOn(_redisService, 'set').mockResolvedValue(undefined);
+    });
+
+    it('should handle vCard message for logged out user', async () => {
+      jest.spyOn(sessionService, 'getSessionByWhatsappId').mockResolvedValue(null);
+
+      const response = await service.processCloudMessage({
+        from: '+18765551234',
+        text: '',
+        messageId: 'test_msg_vcard_logged_out',
+        timestamp: new Date().toISOString(),
+        messageType: 'vcard',
+        isVCard: true,
+        vCard: {
+          name: 'John Doe',
+          phone: '1234567890',
+        },
+      });
+
+      expect(response).toContain('Contact Received');
+      expect(response).toContain('John Doe');
+      expect(response).toContain('Type `link` to connect your account');
+    });
+
+    it('should save vCard contact for logged in user', async () => {
+      const mockSession = {
+        sessionId: 'session123',
+        whatsappId: '+18765551234',
+        phoneNumber: '18765551234',
+        flashUserId: 'user123',
+        flashAuthToken: 'auth-token',
+        isVerified: true,
+        createdAt: new Date(),
+        expiresAt: new Date(),
+        lastActivity: new Date(),
+        mfaVerified: false,
+        consentGiven: true,
+      };
+      jest.spyOn(sessionService, 'getSessionByWhatsappId').mockResolvedValue(mockSession);
+
+      const response = await service.processCloudMessage({
+        from: '+18765551234',
+        text: '',
+        messageId: 'test_msg_vcard_save',
+        timestamp: new Date().toISOString(),
+        messageType: 'vcard',
+        isVCard: true,
+        vCard: {
+          name: 'Alice Smith',
+          phone: '9876543210',
+        },
+      });
+
+      expect(response).toContain('✅ *Contact Saved!*');
+      expect(response).toContain('Alice Smith');
+      expect(response).toContain('9876543210');
+      expect(response).toContain('send 10 to alice');
+      
+      // Verify contact was saved
+      expect(_redisService.set).toHaveBeenCalledWith(
+        'contacts:18765551234',
+        expect.stringContaining('alice'),
+        365 * 24 * 60 * 60
+      );
+    });
+
+    it('should detect duplicate vCard contacts', async () => {
+      const mockSession = {
+        sessionId: 'session123',
+        whatsappId: '+18765551234',
+        phoneNumber: '18765551234',
+        flashUserId: 'user123',
+        flashAuthToken: 'auth-token',
+        isVerified: true,
+        createdAt: new Date(),
+        expiresAt: new Date(),
+        lastActivity: new Date(),
+        mfaVerified: false,
+        consentGiven: true,
+      };
+      jest.spyOn(sessionService, 'getSessionByWhatsappId').mockResolvedValue(mockSession);
+
+      // Mock existing contact
+      const existingContacts = {
+        bob: {
+          name: 'Bob Johnson',
+          phone: '5555551234',
+          addedAt: new Date().toISOString(),
+        },
+      };
+      jest.spyOn(_redisService, 'get').mockResolvedValue(JSON.stringify(existingContacts));
+
+      const response = await service.processCloudMessage({
+        from: '+18765551234',
+        text: '',
+        messageId: 'test_msg_vcard_duplicate',
+        timestamp: new Date().toISOString(),
+        messageType: 'vcard',
+        isVCard: true,
+        vCard: {
+          name: 'Robert Johnson',
+          phone: '5555551234',
+        },
+      });
+
+      expect(response).toContain('Contact Already Saved');
+      expect(response).toContain('Bob Johnson');
+      expect(response).toContain('already in your contacts');
+    });
+  });
 });

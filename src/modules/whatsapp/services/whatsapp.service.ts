@@ -152,6 +152,9 @@ export class WhatsappService {
     isGroup?: boolean;
     groupId?: string;
     instancePhone?: string;
+    messageType?: string;
+    isVCard?: boolean;
+    vCard?: { name: string; phone: string };
   }): Promise<string | { text: string; media?: Buffer; voice?: Buffer; voiceOnly?: boolean }> {
     try {
       const whatsappId = messageData.whatsappId || this.extractWhatsappId(messageData.from);
@@ -186,6 +189,11 @@ export class WhatsappService {
             return result.response || '✉️ Support message processed...';
           }
         }
+      }
+
+      // Handle vCard messages (contact sharing)
+      if (messageData.isVCard && messageData.vCard) {
+        return this.handleVCardMessage(whatsappId, messageData.vCard, messageData.instancePhone);
       }
 
       // Parse command from message (with voice flag if it came from voice)
@@ -3329,53 +3337,135 @@ _By using Pulse, you agree to AI-assisted message processing to help serve you b
       switch (action) {
         case 'add': {
           if (!contactName || !phoneNumber) {
-            return 'Please provide name and phone number. Usage: contacts add [name] [phone]';
+            return `📇 *Add a Contact*
+
+To save a contact, use one of these formats:
+• \`contacts add john +1234567890\`
+• \`contacts add alice 18765551234\`
+
+Or simply share a WhatsApp contact with me and I'll save it automatically! 📲`;
           }
 
           // Get existing contacts
           const existingContacts = await this.redisService.get(contactsKey);
           const contacts = existingContacts ? JSON.parse(existingContacts) : {};
 
+          // Clean the contact name
+          const cleanContactName = contactName.toLowerCase().replace(/[^a-z0-9]/g, '');
+          
+          // Clean the phone number
+          const cleanPhone = phoneNumber.replace(/\D/g, '');
+
           // Check if contact already exists
-          const existingContact = contacts[contactName.toLowerCase()];
-          if (existingContact && existingContact.phone === phoneNumber.replace(/\D/g, '')) {
-            return `ℹ️ Contact "${contactName}" already exists with this number.`;
+          const existingContact = contacts[cleanContactName];
+          if (existingContact && existingContact.phone === cleanPhone) {
+            return `ℹ️ *Contact Already Exists*
+
+*${existingContact.name}* is already saved with this number.
+
+📱 Phone: ${cleanPhone}
+⏰ Added: ${new Date(existingContact.addedAt).toLocaleDateString()}
+
+You can:
+• \`send 10 to ${cleanContactName}\` - Send money
+• \`contacts remove ${cleanContactName}\` - Remove contact`;
+          }
+
+          // Check if phone number already exists under different name
+          const duplicateName = Object.keys(contacts).find(
+            key => contacts[key].phone === cleanPhone
+          );
+          if (duplicateName && duplicateName !== cleanContactName) {
+            return `⚠️ *Phone Number Already Saved*
+
+This number is already saved as *${contacts[duplicateName].name}*.
+
+Would you like to:
+• Use the existing contact: \`send 10 to ${duplicateName}\`
+• Remove old contact first: \`contacts remove ${duplicateName}\``;
           }
 
           // Add or update contact
-          contacts[contactName.toLowerCase()] = {
+          contacts[cleanContactName] = {
             name: contactName,
-            phone: phoneNumber.replace(/\D/g, ''),
+            phone: cleanPhone,
             addedAt: new Date().toISOString(),
+            addedVia: 'manual',
           };
 
           // Save contacts (expire after 1 year)
           await this.redisService.set(contactsKey, JSON.stringify(contacts), 365 * 24 * 60 * 60);
 
-          return `✅ Contact saved: ${contactName} (${phoneNumber})\n\nYou can now use these commands:\n• send [amount] to ${contactName} - Send money instantly\n• request [amount] from ${contactName} - Request payment`;
+          return `✅ *Contact Saved!*
+
+I've added *${contactName}* to your contacts.
+
+📱 Phone: ${cleanPhone}
+🏷️ Quick name: ${cleanContactName}
+
+You can now:
+• \`send 10 to ${cleanContactName}\` - Send money instantly
+• \`request 20 from ${cleanContactName}\` - Request payment
+
+💡 *Pro tip*: You can also share WhatsApp contacts directly with me!`;
         }
 
         case 'remove': {
           if (!contactName) {
-            return 'Please provide contact name. Usage: contacts remove [name]';
+            return `🗑️ *Remove a Contact*
+
+To remove a contact, use:
+• \`contacts remove john\`
+• \`contacts remove alice\`
+
+Type \`contacts\` to see your saved contacts.`;
           }
 
           const contactsToUpdate = await this.redisService.get(contactsKey);
           if (!contactsToUpdate) {
-            return 'You have no saved contacts.';
+            return `📇 You have no saved contacts.\n\nAdd contacts by:\n• Sharing a WhatsApp contact with me\n• Using \`contacts add [name] [phone]\``;
           }
 
           const contactList = JSON.parse(contactsToUpdate);
-          const nameKey = contactName.toLowerCase();
+          const nameKey = contactName.toLowerCase().replace(/[^a-z0-9]/g, '');
 
           if (!contactList[nameKey]) {
-            return `Contact "${contactName}" not found.`;
+            // Find similar contacts
+            const contactNames = Object.keys(contactList);
+            const similar = contactNames.filter(name => 
+              name.includes(nameKey) || nameKey.includes(name)
+            );
+
+            if (similar.length > 0) {
+              return `❌ Contact "${contactName}" not found.
+
+Did you mean:
+${similar.map(name => `• ${contactList[name].name} - \`contacts remove ${name}\``).join('\n')}
+
+Type \`contacts\` to see all saved contacts.`;
+            }
+
+            return `❌ Contact "${contactName}" not found.\n\nType \`contacts\` to see your saved contacts.`;
           }
 
+          // Store contact info before removing
+          const removedContact = contactList[nameKey];
           delete contactList[nameKey];
-          await this.redisService.set(contactsKey, JSON.stringify(contactList), 365 * 24 * 60 * 60);
 
-          return `✅ Contact "${contactName}" removed.`;
+          // Update storage
+          if (Object.keys(contactList).length > 0) {
+            await this.redisService.set(contactsKey, JSON.stringify(contactList), 365 * 24 * 60 * 60);
+          } else {
+            await this.redisService.del(contactsKey);
+          }
+
+          return `✅ *Contact Removed*
+
+*${removedContact.name}* has been removed from your contacts.
+
+📱 Phone was: ${removedContact.phone}
+
+You have ${Object.keys(contactList).length} contact${Object.keys(contactList).length === 1 ? '' : 's'} remaining.`;
         }
 
         case 'history': {
@@ -3418,38 +3508,74 @@ _By using Pulse, you agree to AI-assisted message processing to help serve you b
         default: {
           const savedContacts = await this.redisService.get(contactsKey);
           if (!savedContacts) {
-            const noContactsMsg =
-              'You have no saved contacts.\n\nTo add a contact: contacts add [name] [phone]';
+            const noContactsMsg = `📇 *No Contacts Yet*
+
+You haven't saved any contacts.
+
+*Add contacts by:*
+• Sharing a WhatsApp contact with me 📲
+• Using \`contacts add john +1234567890\`
+
+Once you have contacts, you can:
+• Send money: \`send 10 to john\`
+• Request money: \`request 20 from john\`
+
+💡 *Tip*: Share any WhatsApp contact and I'll save it instantly!`;
             return await this.convertToVoiceOnlyResponse(noContactsMsg, whatsappId);
           }
 
           const contactData = JSON.parse(savedContacts);
-          const contactEntries = Object.values(contactData) as Array<{
+          const contactEntries = Object.entries(contactData) as Array<[string, {
             name: string;
             phone: string;
             addedAt: string;
-          }>;
+            addedVia?: string;
+          }]>;
 
           if (contactEntries.length === 0) {
-            const noContactsMsg =
-              'You have no saved contacts.\n\nTo add a contact: contacts add [name] [phone]';
+            const noContactsMsg = `📇 *No Contacts Yet*
+
+You haven't saved any contacts.
+
+*Add contacts by:*
+• Sharing a WhatsApp contact with me 📲
+• Using \`contacts add john +1234567890\`
+
+Once you have contacts, you can:
+• Send money: \`send 10 to john\`
+• Request money: \`request 20 from john\`
+
+💡 *Tip*: Share any WhatsApp contact and I'll save it instantly!`;
             return await this.convertToVoiceOnlyResponse(noContactsMsg, whatsappId);
           }
 
-          let message = '📇 *Your Saved Contacts*\n\n';
-          for (const contact of contactEntries) {
-            message += `• ${contact.name}: ${contact.phone}`;
+          let message = `📇 *Your Saved Contacts* (${contactEntries.length})\n\n`;
+          
+          // Sort contacts by name
+          contactEntries.sort((a, b) => a[1].name.localeCompare(b[1].name));
+          
+          for (const [key, contact] of contactEntries) {
+            const icon = contact.addedVia === 'vcard' ? '📲' : '📝';
+            message += `${icon} *${contact.name}*\n`;
+            message += `   └ ${contact.phone}\n`;
+            message += `   └ Quick name: \`${key}\`\n`;
 
             // Check if there's history for this contact
-            const histKey = `contact_history:${whatsappId}:${contact.name.toLowerCase()}`;
+            const histKey = `contact_history:${whatsappId}:${key}`;
             const hist = await this.redisService.get(histKey);
             if (hist) {
               const histData = JSON.parse(hist);
-              message += ` (${histData.length} requests)`;
+              message += `   └ ${histData.length} transaction${histData.length === 1 ? '' : 's'}\n`;
             }
             message += '\n';
           }
-          message += '\n_Type "contacts history [name]" to see request history_';
+          
+          message += `*Quick Actions:*
+• Send money: \`send 10 to ${contactEntries[0][0]}\`
+• Request money: \`request 20 from ${contactEntries[0][0]}\`
+• Remove contact: \`contacts remove ${contactEntries[0][0]}\`
+
+💡 *Tip*: Share any WhatsApp contact to add it instantly!`;
 
           // Check if we're in voice-only mode
           const isVoiceOnly = await this.ttsService.shouldSendVoiceOnly(whatsappId);
@@ -3457,9 +3583,9 @@ _By using Pulse, you agree to AI-assisted message processing to help serve you b
             // Generate natural language response for contacts list
             let naturalResponse = '';
             if (contactEntries.length === 1) {
-              const contact = contactEntries[0];
+              const [key, contact] = contactEntries[0];
               naturalResponse = `You have one saved contact: ${contact.name} with phone number ${contact.phone}.`;
-              const histKey = `contact_history:${whatsappId}:${contact.name.toLowerCase()}`;
+              const histKey = `contact_history:${whatsappId}:${key}`;
               const hist = await this.redisService.get(histKey);
               if (hist) {
                 const histData = JSON.parse(hist);
@@ -3467,7 +3593,7 @@ _By using Pulse, you agree to AI-assisted message processing to help serve you b
               }
             } else {
               naturalResponse = `You have ${contactEntries.length} saved contacts. `;
-              const names = contactEntries.map((c) => c.name);
+              const names = contactEntries.map(([_key, c]) => c.name);
               if (names.length <= 3) {
                 naturalResponse += `They are: ${names.join(', ')}.`;
               } else {
@@ -6208,6 +6334,87 @@ Type \`templates\` to see your saved templates.`;
       this.logger.error('Failed to generate voice response:', error);
       // Fallback to text-only response
       return { text, voice: undefined, voiceOnly: false };
+    }
+  }
+
+  /**
+   * Handle vCard message (contact sharing)
+   */
+  private async handleVCardMessage(
+    whatsappId: string,
+    vCard: { name: string; phone: string },
+    instancePhone?: string,
+  ): Promise<string | { text: string; voice?: Buffer; voiceOnly?: boolean }> {
+    try {
+      this.logger.log(`Processing vCard for ${vCard.name} (${vCard.phone}) from ${whatsappId}`);
+
+      // Get user session to check if they're linked
+      const session = await this.sessionService.getSessionByWhatsappId(whatsappId);
+      
+      if (!session || !session.isVerified) {
+        return `📇 *Contact Received*
+
+I received a contact for *${vCard.name}* but you need to link your Flash account first to save contacts.
+
+👉 Type \`link\` to connect your account, then share the contact again!`;
+      }
+
+      // Extract a clean name for the contact (first name or full name)
+      const cleanName = vCard.name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      // Get existing contacts
+      const contactsKey = `contacts:${whatsappId}`;
+      const existingContacts = await this.redisService.get(contactsKey);
+      const contacts = existingContacts ? JSON.parse(existingContacts) : {};
+
+      // Check if this phone number already exists
+      const existingContactName = Object.keys(contacts).find(
+        key => contacts[key].phone === vCard.phone
+      );
+
+      if (existingContactName) {
+        const existingContact = contacts[existingContactName];
+        return `ℹ️ *Contact Already Saved*
+
+*${existingContact.name}* is already in your contacts with this number.
+
+📱 Phone: ${vCard.phone}
+📝 Saved as: ${existingContact.name}
+
+You can:\n• \`send 10 to ${existingContact.name}\` - Send money
+• \`contacts remove ${existingContact.name}\` - Remove contact`;
+      }
+
+      // Add the new contact
+      contacts[cleanName] = {
+        name: vCard.name,
+        phone: vCard.phone,
+        addedAt: new Date().toISOString(),
+        addedVia: 'vcard',
+      };
+
+      // Save contacts (expire after 1 year)
+      await this.redisService.set(contactsKey, JSON.stringify(contacts), 365 * 24 * 60 * 60);
+
+      // Generate response
+      const response = `✅ *Contact Saved!*
+
+I've added *${vCard.name}* to your contacts.
+
+📱 Phone: ${vCard.phone}
+🏷️ Quick name: ${cleanName}
+
+You can now:
+• \`send 10 to ${cleanName}\` - Send money instantly
+• \`request 20 from ${cleanName}\` - Request payment
+• \`contacts\` - View all saved contacts
+
+💡 *Tip*: Share any WhatsApp contact with me and I'll save it automatically!`;
+
+      return await this.convertToVoiceOnlyResponse(response, whatsappId);
+    } catch (error) {
+      this.logger.error(`Error handling vCard: ${error.message}`, error.stack);
+      return '❌ Failed to save contact. Please try again or use `contacts add [name] [phone]`';
     }
   }
 }

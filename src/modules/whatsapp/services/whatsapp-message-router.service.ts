@@ -26,7 +26,7 @@ export class WhatsAppMessageRouter {
       this.logger.debug(`Routing message from instance ${phoneNumber}: ${message.body}`);
 
       // Extract message data
-      const messageData = {
+      const messageData: any = {
         from: message.from,
         text: message.body,
         messageId: (message.id as any)._serialized,
@@ -37,7 +37,26 @@ export class WhatsAppMessageRouter {
         isGroup: message.from.endsWith('@g.us'),
         groupId: message.from.endsWith('@g.us') ? message.from : undefined,
         instancePhone: phoneNumber, // Add instance identifier
+        messageType: message.type,
       };
+
+      // Handle vCard messages
+      if (message.type === 'vcard' && message.hasMedia) {
+        try {
+          const vCardData = (message as any).body || (message as any)._data?.body;
+          if (vCardData) {
+            // Parse vCard data
+            const vCardInfo = this.parseVCard(vCardData);
+            if (vCardInfo) {
+              messageData.vCard = vCardInfo;
+              messageData.isVCard = true;
+              this.logger.log(`Received vCard for ${vCardInfo.name} (${vCardInfo.phone})`);
+            }
+          }
+        } catch (error) {
+          this.logger.error(`Error parsing vCard: ${error.message}`);
+        }
+      }
 
       // Process message through the main WhatsApp service
       const response = await this.whatsappService.processCloudMessage(messageData);
@@ -190,6 +209,60 @@ export class WhatsAppMessageRouter {
         byInstance: {},
       },
     };
+  }
+
+  /**
+   * Parse vCard data to extract contact information
+   */
+  private parseVCard(vCardData: string): { name: string; phone: string } | null {
+    try {
+      // vCard format typically looks like:
+      // BEGIN:VCARD
+      // VERSION:3.0
+      // FN:John Doe
+      // TEL:+1234567890
+      // END:VCARD
+
+      const lines = vCardData.split('\n');
+      let name = '';
+      let phone = '';
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        
+        // Extract full name
+        if (trimmedLine.startsWith('FN:')) {
+          name = trimmedLine.substring(3).trim();
+        }
+        
+        // Extract phone number
+        if (trimmedLine.startsWith('TEL:') || trimmedLine.startsWith('TEL;')) {
+          // Handle different TEL formats (TEL:+123 or TEL;TYPE=CELL:+123)
+          const telParts = trimmedLine.split(':');
+          if (telParts.length >= 2) {
+            phone = telParts[telParts.length - 1].trim();
+          }
+        }
+      }
+
+      // Clean up phone number - remove all non-digits except +
+      if (phone) {
+        phone = phone.replace(/[^\d+]/g, '');
+        // Remove leading + for consistency
+        if (phone.startsWith('+')) {
+          phone = phone.substring(1);
+        }
+      }
+
+      if (name && phone) {
+        return { name, phone };
+      }
+
+      return null;
+    } catch (error) {
+      this.logger.error(`Error parsing vCard data: ${error.message}`);
+      return null;
+    }
   }
 }
 
