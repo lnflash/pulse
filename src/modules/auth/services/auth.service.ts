@@ -57,22 +57,26 @@ export class AuthService {
       this.logger.debug(`Sending OTP to ${formattedPhone} via Flash API`);
       const result = await this.flashApiService.initiatePhoneVerification(formattedPhone);
 
-      if (!result.success) {
-        const errorMessage = result.errors?.[0]?.message || 'Failed to send verification code';
-        throw new BadRequestException(errorMessage);
-      }
-
-      // Check if this requires the mobile app
+      // Check if this requires the mobile app (even if technically "successful")
       if (
         result.errors &&
         result.errors.length > 0 &&
         result.errors[0].message === 'REQUIRES_MOBILE_APP'
       ) {
-        // Throw a specific error so the WhatsApp service can show the right message
-        throw new BadRequestException(
-          'Please open the Flash mobile app to request a verification code, then use that code here.',
-        );
-      } else if (result.errors && result.errors.length > 0) {
+        // Don't actually send OTP from backend, user needs to use mobile app
+        this.logger.log('Backend cannot send OTP. User must use Flash mobile app.');
+        // Return success but with otpSent: false to indicate manual process needed
+        return { sessionId: session.sessionId, otpSent: false };
+      }
+
+      // Check for actual failure
+      if (!result.success) {
+        const errorMessage = result.errors?.[0]?.message || 'Failed to send verification code';
+        throw new BadRequestException(errorMessage);
+      }
+
+      // Log any warnings
+      if (result.errors && result.errors.length > 0) {
         this.logger.warn(`Phone verification initiated with warning: ${result.errors[0].message}`);
       }
 

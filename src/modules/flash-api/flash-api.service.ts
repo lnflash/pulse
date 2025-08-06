@@ -45,6 +45,21 @@ export class FlashApiService {
 
       if (!response.ok) {
         const errorText = await response.text();
+        
+        // Handle 401 errors specifically - this means backend auth is invalid
+        if (response.status === 401) {
+          this.logger.warn('Backend auth token invalid or expired (401 error). Users must request codes via the Flash mobile app.');
+          // Return a specific error that the auth service can handle
+          return {
+            data: {
+              userPhoneRegistrationInitiate: {
+                success: false,
+                errors: [{ message: 'REQUIRES_MOBILE_APP' }]
+              }
+            }
+          } as T;
+        }
+        
         throw new Error(`Flash API error (${response.status}): ${errorText}`);
       }
 

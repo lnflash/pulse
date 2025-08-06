@@ -892,7 +892,25 @@ _This is a WhatsApp privacy feature to protect your number in groups._`;
       if (result.otpSent) {
         return 'Enter the 6-digit verification code.';
       } else {
-        return 'Your Flash account is already linked.';
+        // Check if the session exists and is already verified
+        const session = await this.sessionService.getSession(result.sessionId);
+        if (session && session.isVerified) {
+          return 'Your Flash account is already linked.';
+        } else {
+          // Backend can't send OTP, user needs to use mobile app
+          return `📱 *Manual Verification Required*
+
+To link your Flash account:
+
+1. Open the Flash mobile app
+2. Go to Settings → Security
+3. Request a verification code
+4. Return here and type: \`verify YOUR_CODE\`
+
+Example: \`verify 123456\`
+
+This extra step is required for security when linking accounts.`;
+        }
       }
     } catch (error) {
       this.logger.error(`Error handling link command: ${error.message}`, error.stack);
