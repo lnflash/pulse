@@ -33,11 +33,22 @@ describe('PaymentNotificationService', () => {
 
   const mockSession = {
     id: 'session123',
+    sessionId: 'session123',
     whatsappId: '1234567890@c.us',
+    phoneNumber: '1234567890',
     flashAuthToken: 'auth-token-123',
     flashUserId: 'user123',
     isAuthenticated: true,
-    lastActivity: new Date()
+    isVerified: true,
+    lastActivity: new Date(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    expiresAt: new Date(Date.now() + 86400000),
+    mfaVerified: false,
+    consentGiven: true,
+    metadata: {
+      displayCurrency: 'USD'
+    }
   };
 
   const mockTransaction = {
@@ -142,7 +153,8 @@ describe('PaymentNotificationService', () => {
         {
           provide: TtsService,
           useValue: {
-            synthesizeSpeech: jest.fn().mockResolvedValue(Buffer.from('audio'))
+            synthesizeSpeech: jest.fn().mockResolvedValue(Buffer.from('audio')),
+            textToSpeech: jest.fn().mockResolvedValue(Buffer.from('audio'))
           }
         },
         {
@@ -154,7 +166,8 @@ describe('PaymentNotificationService', () => {
               voiceName: 'terri-ann',
               updatedAt: new Date()
             }),
-            updateUserVoiceSettings: jest.fn()
+            updateUserVoiceSettings: jest.fn(),
+            setUserVoiceMode: jest.fn().mockResolvedValue(undefined)
           }
         }
       ],
@@ -300,7 +313,7 @@ describe('PaymentNotificationService', () => {
   });
 
   describe('sendPaymentNotification', () => {
-    it('should send text notification for received payment', async () => {
+    it('should send voice notification for received payment', async () => {
       // Arrange
       const notification = {
         paymentHash: 'hash123',
@@ -314,20 +327,29 @@ describe('PaymentNotificationService', () => {
         type: 'received' as const
       };
 
-      transactionService.getTransactionByPaymentHash.mockResolvedValue(mockTransaction);
-      usernameService.getUsername.mockResolvedValue('alice');
+      sessionService.getSessionByWhatsappId.mockResolvedValue(mockSession);
+      balanceService.clearBalanceCache = jest.fn();
+      balanceService.getUserBalance = jest.fn().mockResolvedValue({
+        btcBalance: 100000,
+        fiatBalance: 50.00
+      });
 
       // Act
       await (service as any).sendPaymentNotification(notification, '0.00002314 BTC', '$10.00', 'USD');
 
       // Assert
-      expect(whatsappWebService.sendMessage).toHaveBeenCalledWith(
+      expect(ttsService.textToSpeech).toHaveBeenCalledWith(
+        expect.stringContaining('Hi! You just received'),
+        'en',
+        '1234567890@c.us'
+      );
+      expect(whatsappWebService.sendVoiceMessage).toHaveBeenCalledWith(
         '1234567890@c.us',
-        expect.stringContaining('Payment Received')
+        expect.any(Buffer)
       );
     });
 
-    it('should send voice notification when voice mode enabled', async () => {
+    it('should set voice mode to ON if currently OFF', async () => {
       // Arrange
       const notification = {
         paymentHash: 'hash123',
@@ -343,22 +365,26 @@ describe('PaymentNotificationService', () => {
 
       userVoiceSettingsService.getUserVoiceSettings.mockResolvedValue({
         whatsappId: '1234567890@c.us',
-        mode: UserVoiceMode.ONLY,
+        mode: UserVoiceMode.OFF,
         voiceName: 'terri-ann',
         updatedAt: new Date()
       });
 
-      transactionService.getTransactionByPaymentHash.mockResolvedValue(mockTransaction);
+      sessionService.getSessionByWhatsappId.mockResolvedValue(mockSession);
 
       // Act
       await (service as any).sendPaymentNotification(notification, '0.00002314 BTC', '$10.00', 'USD');
 
       // Assert
-      expect((ttsService as any).synthesizeSpeech).toHaveBeenCalled();
+      expect(userVoiceSettingsService.setUserVoiceMode).toHaveBeenCalledWith(
+        '1234567890@c.us',
+        UserVoiceMode.ON
+      );
+      expect(ttsService.textToSpeech).toHaveBeenCalled();
       expect(whatsappWebService.sendVoiceMessage).toHaveBeenCalled();
     });
 
-    it('should prevent duplicate notifications', async () => {
+    it('should skip notification if WhatsApp client not ready', async () => {
       // Arrange
       const notification = {
         paymentHash: 'hash123',
@@ -370,41 +396,54 @@ describe('PaymentNotificationService', () => {
         type: 'received' as const
       };
 
-      redisService.exists.mockResolvedValueOnce(true);
+      whatsappWebService.isClientReady.mockReturnValue(false);
 
       // Act
       await (service as any).sendPaymentNotification(notification, '0.00002314 BTC', '$10.00', 'USD');
 
       // Assert
-      expect(whatsappWebService.sendMessage).not.toHaveBeenCalled();
+      expect(whatsappWebService.sendVoiceMessage).not.toHaveBeenCalled();
+      expect(ttsService.textToSpeech).not.toHaveBeenCalled();
     });
 
-    it('should format sent payment correctly', async () => {
+    it('should format BTC payment voice message correctly', async () => {
       // Arrange
       const notification = {
         paymentHash: 'hash123',
         userId: 'user123',
         whatsappId: '1234567890@c.us',
-        amount: 500,
-        currency: 'USD',
+        amount: 100000,
+        currency: 'BTC',
+        senderName: 'Alice',
+        memo: 'Coffee payment',
         timestamp: '2024-01-01T00:00:00Z',
-        type: 'sent' as const
+        type: 'received' as const
       };
 
-      const sentTransaction = { ...mockTransaction, direction: 'SEND' as const };
-      transactionService.getTransactionByPaymentHash.mockResolvedValue(sentTransaction);
+      sessionService.getSessionByWhatsappId.mockResolvedValue(mockSession);
 
       // Act
-      await (service as any).sendPaymentNotification(notification, '0.00002314 BTC', '$10.00', 'USD');
+      await (service as any).sendPaymentNotification(notification, '0.00100000', '$50.00', 'USD');
 
       // Assert
-      expect(whatsappWebService.sendMessage).toHaveBeenCalledWith(
-        '1234567890@c.us',
-        expect.stringContaining('Payment Sent')
+      expect(ttsService.textToSpeech).toHaveBeenCalledWith(
+        expect.stringContaining('0.00100000 Bitcoin'),
+        'en',
+        '1234567890@c.us'
+      );
+      expect(ttsService.textToSpeech).toHaveBeenCalledWith(
+        expect.stringContaining('from Alice'),
+        'en',
+        '1234567890@c.us'
+      );
+      expect(ttsService.textToSpeech).toHaveBeenCalledWith(
+        expect.stringContaining('They said: Coffee payment'),
+        'en',
+        '1234567890@c.us'
       );
     });
 
-    it('should include balance in notification', async () => {
+    it('should include balance in voice notification', async () => {
       // Arrange
       const notification = {
         paymentHash: 'hash123',
@@ -416,16 +455,23 @@ describe('PaymentNotificationService', () => {
         type: 'received' as const
       };
 
-      transactionService.getTransactionByPaymentHash.mockResolvedValue(mockTransaction);
+      sessionService.getSessionByWhatsappId.mockResolvedValue(mockSession);
+      balanceService.clearBalanceCache = jest.fn();
+      balanceService.getUserBalance = jest.fn().mockResolvedValue({
+        btcBalance: 0,
+        fiatBalance: 125.50
+      });
 
       // Act
       await (service as any).sendPaymentNotification(notification, '0.00002314 BTC', '$10.00', 'USD');
 
       // Assert
-      expect((balanceService as any).getBalance).toHaveBeenCalled();
-      expect(whatsappWebService.sendMessage).toHaveBeenCalledWith(
-        '1234567890@c.us',
-        expect.stringContaining('Balance')
+      expect(balanceService.clearBalanceCache).toHaveBeenCalledWith('user123');
+      expect(balanceService.getUserBalance).toHaveBeenCalledWith('user123', 'auth-token-123');
+      expect(ttsService.textToSpeech).toHaveBeenCalledWith(
+        expect.stringContaining('Your new balance is'),
+        'en',
+        '1234567890@c.us'
       );
     });
   });
@@ -434,14 +480,16 @@ describe('PaymentNotificationService', () => {
     it('should fetch transaction details and notify user', async () => {
       // Arrange
       transactionService.getTransactionByPaymentHash.mockResolvedValue(mockTransaction);
-      // Mock session retrieval if needed
+      sessionService.getSessionByWhatsappId.mockResolvedValue(mockSession);
+      redisService.get.mockResolvedValue(null); // Not a duplicate
 
       // Act
       await (service as any).handleWebSocketPayment('hash123', '1234567890@c.us', 'auth-token');
 
       // Assert
       expect(transactionService.getTransactionByPaymentHash).toHaveBeenCalledWith('hash123', 'auth-token');
-      expect(whatsappWebService.sendMessage).toHaveBeenCalled();
+      expect(ttsService.textToSpeech).toHaveBeenCalled();
+      expect(whatsappWebService.sendVoiceMessage).toHaveBeenCalled();
     });
 
     it('should handle missing transaction', async () => {
@@ -452,7 +500,7 @@ describe('PaymentNotificationService', () => {
       await (service as any).handleWebSocketPayment('hash123', '1234567890@c.us', 'auth-token');
 
       // Assert
-      expect(whatsappWebService.sendMessage).not.toHaveBeenCalled();
+      expect(whatsappWebService.sendVoiceMessage).not.toHaveBeenCalled();
     });
   });
 
@@ -462,23 +510,26 @@ describe('PaymentNotificationService', () => {
       const eventData = {
         paymentHash: 'hash123',
         userId: 'user123',
+        whatsappId: '1234567890@c.us',
         amount: 1000,
         currency: 'USD',
+        senderName: 'Bob',
         type: 'received'
       };
 
-      // Mock session retrieval if needed
-      transactionService.getTransactionByPaymentHash.mockResolvedValue(mockTransaction);
+      sessionService.getSessionByWhatsappId.mockResolvedValue(mockSession);
+      redisService.get.mockResolvedValue(null); // Not a duplicate
 
       // Act
       await (service as any).handleRabbitMQPayment(eventData);
 
       // Assert
-      expect(whatsappWebService.sendMessage).toHaveBeenCalled();
+      expect(ttsService.textToSpeech).toHaveBeenCalled();
+      expect(whatsappWebService.sendVoiceMessage).toHaveBeenCalled();
     });
   });
 
-  describe.skip('formatPaymentMessage - Method does not exist', () => {
+  describe.skip('formatPaymentMessage - Method removed, voice-only now', () => {
     it('should format received payment message', () => {
       // Act
       const result = (service as any).formatPaymentMessage(
@@ -546,47 +597,10 @@ describe('PaymentNotificationService', () => {
     });
   });
 
-  describe('formatVoiceMessage', () => {
+  describe.skip('formatVoiceMessage - Method removed, inline formatting now', () => {
     it('should format voice message for received payment', () => {
-      // Act
-      const result = (service as any).formatVoiceMessage(
-        mockTransaction,
-        'received',
-        { btc: 0.001, usd: 50 }
-      );
-
-      // Assert
-      expect(result).toContain('Payment received');
-      expect(result).toContain('10 dollars');
-      expect(result).toContain('Your balance is now');
-    });
-
-    it('should format voice message for sent payment', () => {
-      // Arrange
-      const sentTransaction = { ...mockTransaction, direction: 'SEND' as const };
-
-      // Act
-      const result = (service as any).formatVoiceMessage(
-        sentTransaction,
-        'sent',
-        { btc: 0.001, usd: 50 }
-      );
-
-      // Assert
-      expect(result).toContain('Payment sent');
-      expect(result).toContain('10 dollars');
-    });
-
-    it('should include memo in voice message', () => {
-      // Act
-      const result = (service as any).formatVoiceMessage(
-        mockTransaction,
-        'received',
-        { btc: 0.001, usd: 50 }
-      );
-
-      // Assert
-      expect(result).toContain('Test payment');
+      // This method no longer exists - voice messages are formatted inline in sendPaymentNotification
+      // The service now uses convertCurrencyToWords for natural language formatting
     });
   });
 
@@ -625,7 +639,7 @@ describe('PaymentNotificationService', () => {
       await expect(service.subscribeUserToPayments('user@c.us', 'auth')).resolves.toBeUndefined();
     });
 
-    it('should handle voice conversion errors', async () => {
+    it('should handle voice conversion errors gracefully', async () => {
       // Arrange
       const notification = {
         paymentHash: 'hash123',
@@ -637,26 +651,21 @@ describe('PaymentNotificationService', () => {
         type: 'received' as const
       };
 
-      userVoiceSettingsService.getUserVoiceSettings.mockResolvedValue({
-        whatsappId: '1234567890@c.us',
-        mode: UserVoiceMode.ONLY,
-        voiceName: 'terri-ann',
-        updatedAt: new Date()
-      });
+      sessionService.getSessionByWhatsappId.mockResolvedValue(mockSession);
+      ttsService.textToSpeech.mockRejectedValue(new Error('TTS failed'));
 
-      (ttsService as any).synthesizeSpeech.mockRejectedValue(new Error('TTS failed'));
-      transactionService.getTransactionByPaymentHash.mockResolvedValue(mockTransaction);
-
-      // Act
-      await (service as any).sendPaymentNotification(notification, '0.00002314 BTC', '$10.00', 'USD');
-
-      // Assert
-      expect(whatsappWebService.sendMessage).toHaveBeenCalled(); // Should fallback to text
+      // Act & Assert - Should throw since there's no fallback to text anymore
+      await expect(
+        (service as any).sendPaymentNotification(notification, '0.00002314 BTC', '$10.00', 'USD')
+      ).rejects.toThrow('TTS failed');
     });
 
     it('should handle missing balance gracefully', async () => {
       // Arrange
-      ((balanceService as any).getBalance as jest.Mock).mockRejectedValue(new Error('Balance fetch failed'));
+      sessionService.getSessionByWhatsappId.mockResolvedValue(mockSession);
+      balanceService.clearBalanceCache = jest.fn();
+      balanceService.getUserBalance = jest.fn().mockRejectedValue(new Error('Balance fetch failed'));
+      
       const notification = {
         paymentHash: 'hash123',
         userId: 'user123',
@@ -667,16 +676,15 @@ describe('PaymentNotificationService', () => {
         type: 'received' as const
       };
 
-      transactionService.getTransactionByPaymentHash.mockResolvedValue(mockTransaction);
-
       // Act
       await (service as any).sendPaymentNotification(notification, '0.00002314 BTC', '$10.00', 'USD');
 
       // Assert
-      expect(whatsappWebService.sendMessage).toHaveBeenCalled();
-      expect(whatsappWebService.sendMessage).toHaveBeenCalledWith(
-        '1234567890@c.us',
-        expect.not.stringContaining('Balance:')
+      expect(whatsappWebService.sendVoiceMessage).toHaveBeenCalled();
+      expect(ttsService.textToSpeech).toHaveBeenCalledWith(
+        expect.not.stringContaining('Your new balance'),
+        'en',
+        '1234567890@c.us'
       );
     });
   });

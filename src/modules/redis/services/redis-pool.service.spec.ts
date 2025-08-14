@@ -213,24 +213,46 @@ describe('RedisPoolService', () => {
 
     it('should handle connection timeout', async () => {
       // Arrange
+      jest.useFakeTimers();
+      
       const slowClient = {
         ...mockRedisClient,
         status: 'connecting',
-        once: jest.fn(),
+        once: jest.fn((event, callback) => {
+          // Don't call the callback to simulate hanging connection
+          if (event === 'ready') {
+            // Store callback but don't call it
+          } else if (event === 'error') {
+            // Store error callback but don't call it
+          }
+        }),
       };
-      (Redis as any).mockImplementation(() => slowClient);
+      (Redis as jest.MockedClass<typeof Redis>).mockImplementation(() => slowClient as any);
 
-      // Act & Assert
-      await expect((service as any).createConnection(0)).rejects.toThrow('Connection timeout');
+      // Act
+      const connectionPromise = (service as any).createConnection(0);
+      
+      // Fast-forward time by 5 seconds to trigger timeout
+      jest.advanceTimersByTime(5000);
+      
+      // Assert
+      await expect(connectionPromise).rejects.toThrow('Connection timeout');
+      
+      jest.useRealTimers();
     });
 
     it('should add Sentinel configuration when provided', async () => {
       // Arrange
       const sentinels = [{ host: 'sentinel1', port: 26379 }];
-      configService.get.mockImplementation((key: string) => {
-        if (key === 'redis.sentinels') return sentinels;
-        return (configService.get as any).mock.calls[0]?.[1];
+      const originalGet = configService.get;
+      configService.get.mockImplementation((key: string, defaultValue?: any) => {
+        if (key === 'redis.pool.sentinels') return sentinels;
+        if (key === 'redis') return mockRedisConfig;
+        return originalGet(key, defaultValue);
       });
+
+      // Update mock config to include sentinels
+      (service as any).config.sentinels = sentinels;
 
       // Act
       await (service as any).createConnection(0);
@@ -278,17 +300,36 @@ describe('RedisPoolService', () => {
 
     it('should wait for available connection when pool full', async () => {
       // Arrange
-      jest.spyOn(service as any, 'getIdleConnection')
-        .mockReturnValueOnce(null)
-        .mockReturnValueOnce(null)
-        .mockReturnValueOnce(mockRedisClient);
+      let waitResolve: any;
+      const waitPromise = new Promise<Redis>((resolve) => {
+        waitResolve = resolve;
+      });
+      
+      let callCount = 0;
+      jest.spyOn(service as any, 'getIdleConnection').mockImplementation(() => {
+        callCount++;
+        // Return null first time, then return connection after wait
+        return callCount === 1 ? null : mockRedisClient;
+      });
+      
+      jest.spyOn(service as any, 'waitForConnection').mockReturnValue(waitPromise);
+      
       (service as any).pool = new Array(mockConfig.maxConnections).fill(mockRedisClient);
+      (service as any).activeConnections = new Set(new Array(mockConfig.maxConnections).fill(mockRedisClient));
 
       // Act
-      const connection = await service.acquire();
+      const connectionPromise = service.acquire();
+      
+      // Simulate connection becoming available
+      setTimeout(() => {
+        waitResolve(mockRedisClient);
+      }, 10);
+      
+      const connection = await connectionPromise;
 
       // Assert
       expect(connection).toBe(mockRedisClient);
+      expect((service as any).waitForConnection).toHaveBeenCalled();
     });
 
     it('should throw error when shutting down', async () => {
@@ -301,12 +342,40 @@ describe('RedisPoolService', () => {
 
     it('should timeout when no connection available', async () => {
       // Arrange
+      const startTime = Date.now();
+      let currentTime = startTime;
+      let callCount = 0;
+      
+      // Mock Date.now() to control time
+      jest.spyOn(Date, 'now').mockImplementation(() => {
+        // First call is startTime, subsequent calls simulate time passing
+        if (callCount === 0) {
+          callCount++;
+          return startTime;
+        }
+        // Second call checks timeout - return time past timeout
+        return startTime + 101;
+      });
+      
+      // Mock getIdleConnection to always return null
       jest.spyOn(service as any, 'getIdleConnection').mockReturnValue(null);
-      (service as any).pool = new Array(mockConfig.maxConnections).fill(mockRedisClient);
+      
+      // Mock waitForConnection to never resolve but doesn't matter since timeout happens first
+      jest.spyOn(service as any, 'waitForConnection').mockImplementation(() => {
+        return new Promise(() => {}); // Never resolves
+      });
+      
+      // Set up pool to be full
+      const clients = Array(mockConfig.maxConnections).fill(null).map((_, i) => ({ ...mockRedisClient, id: i }));
+      (service as any).pool = clients;
+      (service as any).activeConnections = new Set(clients);
       (service as any).config.acquireTimeout = 100;
 
       // Act & Assert
-      await expect(service.acquire()).rejects.toThrow('Connection acquire timeout');
+      await expect(service.acquire()).rejects.toThrow('Failed to acquire Redis connection within 100ms');
+      
+      // Cleanup
+      jest.restoreAllMocks();
     });
   });
 
@@ -348,8 +417,14 @@ describe('RedisPoolService', () => {
   describe('getStats', () => {
     it('should return pool statistics', () => {
       // Arrange
-      (service as any).pool = new Array(5).fill(mockRedisClient);
-      (service as any).activeConnections = new Set([mockRedisClient, mockRedisClient]);
+      const client1 = { ...mockRedisClient, id: 1 };
+      const client2 = { ...mockRedisClient, id: 2 };
+      const client3 = { ...mockRedisClient, id: 3 };
+      const client4 = { ...mockRedisClient, id: 4 };
+      const client5 = { ...mockRedisClient, id: 5 };
+      
+      (service as any).pool = [client1, client2, client3, client4, client5];
+      (service as any).activeConnections = new Set([client1, client2]);
       (service as any).waitingQueue = [jest.fn(), jest.fn(), jest.fn()];
 
       // Act
@@ -394,7 +469,7 @@ describe('RedisPoolService', () => {
 
       // Assert
       expect(health.healthy).toBe(false);
-      expect(health.errors).toContain('Pool has fewer connections than minimum');
+      expect(health.errors[0]).toMatch(/Pool has \d+ connections, minimum is \d+/);
     });
   });
 
