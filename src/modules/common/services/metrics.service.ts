@@ -89,9 +89,27 @@ export class MetricsService {
   /**
    * Increment a counter
    */
-  incrementCounter(name: string, value: number = 1): void {
+  incrementCounter(name: string, valueOrTags?: number | Record<string, any>, tags?: Record<string, any>): void {
+    let value = 1;
+    let actualTags: Record<string, any> | undefined;
+    
+    // Handle overloaded parameters
+    if (typeof valueOrTags === 'number') {
+      value = valueOrTags;
+      actualTags = tags;
+    } else if (typeof valueOrTags === 'object') {
+      actualTags = valueOrTags;
+    }
+    
     const current = this.counters.get(name) || 0;
     this.counters.set(name, current + value);
+    
+    // Store metric with tags if provided
+    if (actualTags) {
+      const taggedName = `${name}_${JSON.stringify(actualTags)}`;
+      const taggedCurrent = this.counters.get(taggedName) || 0;
+      this.counters.set(taggedName, taggedCurrent + value);
+    }
   }
 
   /**
@@ -121,8 +139,14 @@ export class MetricsService {
   /**
    * Record a histogram value
    */
-  recordHistogram(name: string, value: number): void {
+  recordHistogram(name: string, value: number, tags?: Record<string, any>): void {
     this.recordTimer(name, value); // Reuse timer logic for now
+    
+    // Store with tags if provided
+    if (tags) {
+      const taggedName = `${name}_${JSON.stringify(tags)}`;
+      this.recordTimer(taggedName, value);
+    }
   }
 
   /**

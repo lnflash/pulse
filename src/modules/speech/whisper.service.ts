@@ -33,6 +33,15 @@ export class WhisperService {
   }
 
   /**
+   * Transcribe audio to text using Whisper AI (alias for speechToText)
+   * @param audioBuffer - Audio buffer containing speech
+   * @returns Transcribed text or null if not available
+   */
+  async transcribeAudio(audioBuffer: Buffer): Promise<string | null> {
+    return this.speechToText(audioBuffer, 'audio/ogg; codecs=opus');
+  }
+
+  /**
    * Convert speech audio to text using Whisper AI
    * @param audioBuffer - Audio buffer containing speech
    * @param mimeType - MIME type of the audio (e.g., 'audio/ogg; codecs=opus')

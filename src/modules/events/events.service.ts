@@ -72,6 +72,23 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
+   * Emit an event (for compatibility with EventEmitter pattern)
+   */
+  async emit(eventName: string, data: any): Promise<void> {
+    try {
+      const eventData = {
+        event: eventName,
+        data,
+        timestamp: new Date().toISOString()
+      };
+      
+      await this.sendMessage(eventData);
+    } catch (error) {
+      this.logger.error(`Failed to emit event ${eventName}:`, error);
+    }
+  }
+
+  /**
    * Connect to RabbitMQ and set up channel
    */
   private async connect(): Promise<void> {

@@ -109,6 +109,13 @@ export class GeminiAiService {
   }
 
   /**
+   * Generate content using Gemini AI (public wrapper for processQuery)
+   */
+  async generateContent(prompt: string): Promise<string> {
+    return this.processQuery(prompt, {});
+  }
+
+  /**
    * Build a comprehensive prompt for Gemini
    */
   private buildPrompt(query: string, context: Record<string, any>): string {
