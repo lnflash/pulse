@@ -7,6 +7,7 @@ import { WhatsAppWebController } from './controllers/whatsapp-web.controller';
 
 // Services
 import { WhatsappService } from './services/whatsapp.service';
+import { EnhancedWhatsappService } from '../dialect-ai/services/enhanced-whatsapp.service';
 import { CommandParserService } from './services/command-parser.service';
 import { CommandValidatorService } from './services/command-validator.service';
 // import { WhatsAppCloudService } from './services/whatsapp-cloud.service';
@@ -57,6 +58,7 @@ import { SpeechModule } from '../speech/speech.module';
 import { PluginsModule } from '../plugins/plugins.module';
 import { CommonModule } from '../common/common.module';
 import { MESSAGING_PLATFORM } from '../messaging/messaging.constants';
+import { DialectAiModule } from '../dialect-ai/dialect-ai.module';
 
 @Module({
   imports: [
@@ -70,6 +72,7 @@ import { MESSAGING_PLATFORM } from '../messaging/messaging.constants';
     SpeechModule,
     PluginsModule,
     CommonModule,
+    DialectAiModule,
   ],
   controllers: [
     // WhatsappController,    // Cloud API Controller (disabled for prototype)
@@ -77,6 +80,7 @@ import { MESSAGING_PLATFORM } from '../messaging/messaging.constants';
   ],
   providers: [
     WhatsappService,
+    EnhancedWhatsappService, // Dialect AI enhanced service
     // WhatsAppCloudService,  // Cloud API Service (disabled for prototype)
     WhatsAppWebService, // WhatsApp Web.js Service
     WhatsAppInstanceManager, // Multi-instance manager
@@ -120,6 +124,7 @@ import { MESSAGING_PLATFORM } from '../messaging/messaging.constants';
   ],
   exports: [
     WhatsappService,
+    EnhancedWhatsappService,
     WhatsAppWebService,
     WhatsAppMessagingService,
     MESSAGING_PLATFORM,
