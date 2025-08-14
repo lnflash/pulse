@@ -4,7 +4,22 @@ import { RedisPoolService, RedisPoolConfig, PoolStats } from './redis-pool.servi
 import Redis from 'ioredis';
 
 // Mock ioredis
-jest.mock('ioredis');
+jest.mock('ioredis', () => {
+  return {
+    __esModule: true,
+    default: jest.fn().mockImplementation(() => ({
+      ping: jest.fn().mockResolvedValue('PONG'),
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue('OK'),
+      del: jest.fn().mockResolvedValue(1),
+      quit: jest.fn().mockResolvedValue('OK'),
+      disconnect: jest.fn(),
+      on: jest.fn(),
+      once: jest.fn(),
+      status: 'ready',
+    })),
+  };
+});
 
 describe('RedisPoolService', () => {
   let service: RedisPoolService;
@@ -46,8 +61,8 @@ describe('RedisPoolService', () => {
       del: jest.fn().mockResolvedValue(1),
     } as any;
 
-    // Mock Redis constructor
-    (Redis as any).mockImplementation(() => mockRedisClient);
+    // Update the mock implementation
+    (Redis as jest.MockedClass<typeof Redis>).mockImplementation(() => mockRedisClient);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
