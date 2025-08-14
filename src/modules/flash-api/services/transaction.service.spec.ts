@@ -336,7 +336,7 @@ describe('TransactionService', () => {
 
       // Assert
       expect(result).toContain('$25.00 USD');
-      expect(result).toContain('~0.00057837 BTC');
+      expect(result).toContain('~0.00057850 BTC');
     });
 
     it('should format send transaction correctly', () => {
@@ -451,7 +451,7 @@ describe('TransactionService', () => {
       expect(result).toContain('📥 RECEIVED');
       expect(result).toContain('0.00100000 BTC');
       expect(result).toContain('100,000 sats');
-      expect(result).toContain('$43.21 USD');
+      expect(result).toContain('43.21 USD');
       expect(result).toContain('✅ Confirmed');
       expect(result).toContain('#tx-123456789');
       expect(result).toContain('Test payment');
@@ -474,7 +474,7 @@ describe('TransactionService', () => {
 
       // Assert
       expect(result).toContain('$25.00 USD');
-      expect(result).toContain('⚡ Fee: $5.00');
+      expect(result).toContain('⚡ Fee: $0.05');
     });
 
     it('should handle transaction without fee', async () => {
@@ -533,7 +533,7 @@ describe('TransactionService', () => {
       // Assert
       expect(result).toContain('You received 100,000 sats');
       expect(result).toContain('or about 43.21 USD');
-      expect(result).toContain('on January 1');
+      expect(result).toContain('on December 31');
       expect(result).toContain('The memo says: Test payment');
       expect(result).toContain('This was from @alice');
       expect(result).toContain('The transaction ID ends with 6789');

@@ -170,8 +170,8 @@ export class TransactionService {
         amountStr += ` (~${tx.settlementDisplayAmount} ${tx.settlementDisplayCurrency})`;
       }
     } else {
-      // USD transaction - amount is already in dollars
-      const usdAmount = parseFloat(tx.settlementAmount.toString());
+      // USD transaction - amount is in cents, convert to dollars
+      const usdAmount = tx.settlementAmount / 100;
       amountStr = `$${usdAmount.toFixed(2)} USD`;
 
       // Add BTC equivalent if available
@@ -331,7 +331,8 @@ export class TransactionService {
         secondaryAmount = `\n💵 ${tx.settlementDisplayAmount} ${tx.settlementDisplayCurrency}`;
       }
     } else {
-      const usdAmount = parseFloat(tx.settlementAmount.toString());
+      // USD amount is in cents, convert to dollars
+      const usdAmount = tx.settlementAmount / 100;
       primaryAmount = `$${usdAmount.toFixed(2)} USD`;
 
       if (tx.settlementPrice) {
@@ -348,7 +349,8 @@ export class TransactionService {
         const feeSats = tx.settlementFee;
         fee = `\n⚡ Fee: ${feeSats} sats`;
       } else {
-        const feeAmount = parseFloat(tx.settlementFee.toString());
+        // USD fee is in cents, convert to dollars
+        const feeAmount = tx.settlementFee / 100;
         fee = `\n⚡ Fee: $${feeAmount.toFixed(2)}`;
       }
     }
@@ -412,7 +414,8 @@ export class TransactionService {
         amount += ` or about ${tx.settlementDisplayAmount} ${tx.settlementDisplayCurrency}`;
       }
     } else {
-      const usd = parseFloat(tx.settlementAmount.toString());
+      // USD amount is in cents, convert to dollars
+      const usd = tx.settlementAmount / 100;
       amount = `${usd.toFixed(2)} dollars`;
     }
 
