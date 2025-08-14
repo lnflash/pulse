@@ -76,13 +76,7 @@ export class EventsService implements OnModuleInit, OnModuleDestroy {
    */
   async emit(eventName: string, data: any): Promise<void> {
     try {
-      const eventData = {
-        event: eventName,
-        data,
-        timestamp: new Date().toISOString()
-      };
-      
-      await this.sendMessage(eventData);
+      await this.publishEvent(eventName, data);
     } catch (error) {
       this.logger.error(`Failed to emit event ${eventName}:`, error);
     }

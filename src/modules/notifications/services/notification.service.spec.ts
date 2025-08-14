@@ -28,9 +28,10 @@ describe('NotificationService', () => {
     message: 'You received a payment',
     channels: [NotificationChannel.WHATSAPP],
     paymentData: {
+      transactionId: 'tx123',
       amount: 0.001,
       currency: 'BTC',
-      timestamp: new Date('2024-01-01T00:00:00Z'),
+      timestamp: '2024-01-01T00:00:00Z',
       memo: 'Test payment',
       senderName: 'Alice',
       receiverName: 'Bob'
@@ -48,12 +49,12 @@ describe('NotificationService', () => {
 
   const mockPreferences: NotificationPreferencesDto = {
     userId: 'user123',
-    enabledTypes: [NotificationType.PAYMENT_RECEIVED, NotificationType.PAYMENT_SENT],
-    mutedChannels: [],
-    emailEnabled: false,
-    smsEnabled: false,
-    whatsappEnabled: true,
-    pushEnabled: false
+    paymentReceived: true,
+    paymentSent: true,
+    accountActivity: true,
+    securityAlert: true,
+    systemAnnouncement: true,
+    preferredChannels: [NotificationChannel.WHATSAPP]
   };
 
   beforeEach(async () => {
@@ -161,10 +162,11 @@ describe('NotificationService', () => {
       // Arrange
       const disabledPreferences = {
         ...mockPreferences,
-        enabledTypes: []
+        paymentReceived: false
       };
       jest.spyOn(service as any, 'getUserPreferences').mockResolvedValue(disabledPreferences);
       jest.spyOn(service as any, 'isNotificationEnabled').mockReturnValue(false);
+      jest.spyOn(service as any, 'sendWhatsAppNotification').mockResolvedValue(undefined);
 
       const sendDto: SendNotificationDto = {
         notification: mockNotification,
@@ -184,6 +186,7 @@ describe('NotificationService', () => {
       jest.spyOn(service as any, 'getUserPreferences').mockResolvedValue(mockPreferences);
       jest.spyOn(service as any, 'findSessionByUserId').mockResolvedValue(null);
       jest.spyOn(service as any, 'recordNotificationEvent').mockResolvedValue(undefined);
+      jest.spyOn(service as any, 'sendWhatsAppNotification').mockResolvedValue(undefined);
 
       const sendDto: SendNotificationDto = {
         notification: mockNotification,
@@ -274,7 +277,7 @@ describe('NotificationService', () => {
       // Arrange
       const genericNotification = {
         userId: 'user123',
-        type: NotificationType.SYSTEM_UPDATE,
+        type: NotificationType.SYSTEM_ANNOUNCEMENT,
         title: 'System Update',
         message: 'The system has been updated'
       };
@@ -290,7 +293,7 @@ describe('NotificationService', () => {
       // Arrange
       const notificationWithoutTitle = {
         userId: 'user123',
-        type: NotificationType.SYSTEM_UPDATE,
+        type: NotificationType.SYSTEM_ANNOUNCEMENT,
         message: 'Simple message'
       };
 
@@ -522,6 +525,7 @@ describe('NotificationService', () => {
 
       jest.spyOn(service as any, 'findSessionByUserId').mockResolvedValue(mockSession);
       jest.spyOn(service as any, 'recordNotificationEvent').mockResolvedValue(undefined);
+      jest.spyOn(service as any, 'sendWhatsAppNotification').mockResolvedValue(undefined);
 
       // Act
       const result = await service.sendNotification(sendDto);
@@ -536,15 +540,17 @@ describe('NotificationService', () => {
       const futureNotification = {
         ...mockNotification,
         paymentData: {
-          ...mockNotification.paymentData,
-          timestamp: new Date('2025-01-01T00:00:00Z')
+          ...mockNotification.paymentData!,
+          timestamp: '2025-01-01T00:00:00Z'
         }
       };
+      jest.spyOn(service as any, 'formatPaymentNotification').mockReturnValue('Payment on 2025-01-01');
 
       // Act
       const result = (service as any).formatNotificationMessage(futureNotification);
 
       // Assert
+      expect((service as any).formatPaymentNotification).toHaveBeenCalled();
       expect(result).toContain('2025');
     });
 
