@@ -70,10 +70,11 @@ export class ConversationManagerService {
       // Process voice messages
       let textMessage = message as string;
       if (messageType === 'voice' && Buffer.isBuffer(message)) {
-        textMessage = await this.transcribeVoice(message);
-        if (!textMessage) {
+        const transcribed = await this.transcribeVoice(message);
+        if (!transcribed) {
           return this.createErrorResponse("Mi cyaa hear yuh properly. Please try again.", context.dialect);
         }
+        textMessage = transcribed;
       }
 
       // Detect dialect and normalize

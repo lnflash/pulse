@@ -60,11 +60,7 @@ export class RedisBatchService {
         this.addOperationToPipeline(pipeline, op);
       }
 
-      if (options.atomic) {
-        pipeline.exec();
-      }
-
-      // Execute pipeline
+      // Execute pipeline (exec() is already called on multi transactions)
       const results = await pipeline.exec();
       const duration = Date.now() - startTime;
 
@@ -275,9 +271,23 @@ export class RedisBatchService {
     results: any[],
     options: PipelineOptions,
   ): BatchResult[] {
-    return results.map((result, index) => {
+    // Ensure we have the same number of results as operations
+    // If not, pad with null results
+    const normalizedResults = results || [];
+    
+    return operations.map((operation, index) => {
+      // Get the result for this operation, or null if missing
+      const result = normalizedResults[index];
       const [error, value] = result || [null, null];
-      const operation = operations[index];
+
+      if (!operation) {
+        // This shouldn't happen but let's be defensive
+        return {
+          success: false,
+          error: new Error('Missing operation'),
+          operation: { type: 'get', key: 'unknown' } as BatchOperation,
+        };
+      }
 
       if (error) {
         this.logger.error(`Operation ${operation.type} on key ${operation.key} failed:`, error);
@@ -293,9 +303,9 @@ export class RedisBatchService {
         };
       }
 
-      // Parse JSON values for get operations
+      // Parse JSON values for get and hget operations
       let parsedValue = value;
-      if (operation.type === 'get' && value !== null) {
+      if ((operation.type === 'get' || operation.type === 'hget') && value !== null) {
         try {
           parsedValue = JSON.parse(value);
         } catch {

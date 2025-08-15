@@ -318,7 +318,7 @@ describe('SecurityAuditService', () => {
         { ...mockSecurityEvent, severity: 'info' as const },
         { ...mockSecurityEvent, severity: 'warning' as const },
         { ...mockSecurityEvent, severity: 'critical' as const },
-        { ...mockSecurityEvent, type: SecurityEventType.LOGIN_FAILURE },
+        { ...mockSecurityEvent, type: SecurityEventType.LOGIN_FAILURE, severity: 'warning' as const },
       ];
       jest.spyOn(service, 'getSecurityEvents').mockResolvedValue(events as any);
 
@@ -328,7 +328,7 @@ describe('SecurityAuditService', () => {
       // Assert
       expect(summary.total).toBe(4);
       expect(summary.bySeverity.info).toBe(1);
-      expect(summary.bySeverity.warning).toBe(1);
+      expect(summary.bySeverity.warning).toBe(2);
       expect(summary.bySeverity.critical).toBe(1);
       expect(summary.byType[SecurityEventType.LOGIN_SUCCESS]).toBe(3);
       expect(summary.byType[SecurityEventType.LOGIN_FAILURE]).toBe(1);
@@ -400,30 +400,30 @@ describe('SecurityAuditService', () => {
   describe('cleanupOldLogs', () => {
     it('should remove logs older than retention period', async () => {
       // Arrange
-      const oldDate = new Date(Date.now() - 91 * 24 * 60 * 60 * 1000); // 91 days old
-      const recentDate = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000); // 10 days old
+      // Create dates that are definitely older and newer than retention period
+      const today = new Date();
+      const oldDate = new Date(today);
+      oldDate.setDate(oldDate.getDate() - 100); // 100 days old
+      const recentDate = new Date(today);
+      recentDate.setDate(recentDate.getDate() - 10); // 10 days old
+      
+      const oldDateStr = oldDate.toISOString().split('T')[0];
+      const recentDateStr = recentDate.toISOString().split('T')[0];
       
       mockFs.readdir.mockResolvedValue([
-        'security-2023-01-01.log',
-        'security-2024-01-01.log',
+        `security-${oldDateStr}.log`,
+        `security-${recentDateStr}.log`,
       ] as any);
-      
-      mockFs.stat.mockImplementation(async (filePath: any) => {
-        if (filePath.includes('2023')) {
-          return { mtime: oldDate } as any;
-        }
-        return { mtime: recentDate } as any;
-      });
 
       // Act
       await (service as any).cleanupOldLogs();
 
       // Assert
       expect(mockFs.unlink).toHaveBeenCalledWith(
-        expect.stringContaining('security-2023-01-01.log')
+        expect.stringContaining(`security-${oldDateStr}.log`)
       );
       expect(mockFs.unlink).not.toHaveBeenCalledWith(
-        expect.stringContaining('security-2024-01-01.log')
+        expect.stringContaining(`security-${recentDateStr}.log`)
       );
     });
 

@@ -161,7 +161,12 @@ export class AdminAuthService {
         phoneNumber,
         sessionId: session.id,
       };
-    } catch {
+    } catch (error) {
+      // Re-throw UnauthorizedException with specific message
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      // For JWT verify errors, throw generic message
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
   }

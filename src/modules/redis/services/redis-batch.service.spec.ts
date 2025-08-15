@@ -558,7 +558,7 @@ describe('RedisBatchService', () => {
       const operations: any[] = [{ type: 'unsupported', key: 'key1' }];
 
       // Act & Assert
-      await expect(service.executeBatch(operations)).rejects.toThrow(
+      await expect(service.executeBatch(operations, { throwOnError: true })).rejects.toThrow(
         'Unsupported operation type: unsupported'
       );
     });
@@ -614,6 +614,7 @@ describe('RedisBatchService', () => {
     it('should handle delay correctly', async () => {
       // Arrange
       jest.useFakeTimers();
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
       const delayPromise = service['delay'](100);
       
       // Act
@@ -621,8 +622,9 @@ describe('RedisBatchService', () => {
       await delayPromise;
 
       // Assert
-      expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 100);
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 100);
       
+      setTimeoutSpy.mockRestore();
       jest.useRealTimers();
     });
   });

@@ -205,7 +205,7 @@ export class SecurityAuditService {
 
     try {
       const logEntry = JSON.stringify(event) + '\n';
-      await fs.appendFile(logFile, logEntry);
+      await fs.appendFile(logFile, logEntry, 'utf-8');
     } catch (error) {
       this.logger.error('Failed to write to audit log', error);
     }

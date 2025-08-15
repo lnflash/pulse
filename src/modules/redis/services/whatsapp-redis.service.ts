@@ -22,7 +22,7 @@ export class WhatsAppRedisService {
    */
   async getWithIdNormalization(keyPattern: string, whatsappId: string): Promise<string | null> {
     // First try with the original ID
-    const originalKey = keyPattern.replace('${whatsappId}', whatsappId);
+    const originalKey = keyPattern.replaceAll('${whatsappId}', whatsappId);
     let value = await this.redisService.get(originalKey);
 
     if (value) {
@@ -36,7 +36,7 @@ export class WhatsAppRedisService {
       for (const altId of alternativeIds) {
         if (altId !== whatsappId) {
           // Skip the original
-          const altKey = keyPattern.replace('${whatsappId}', altId);
+          const altKey = keyPattern.replaceAll('${whatsappId}', altId);
           value = await this.redisService.get(altKey);
 
           if (value) {
@@ -58,7 +58,7 @@ export class WhatsAppRedisService {
     whatsappId: string,
   ): Promise<any | null> {
     // First try with the original ID
-    const originalKey = keyPattern.replace('${whatsappId}', whatsappId);
+    const originalKey = keyPattern.replaceAll('${whatsappId}', whatsappId);
     let value = await this.redisService.getEncrypted(originalKey);
 
     if (value) {
@@ -72,7 +72,7 @@ export class WhatsAppRedisService {
       for (const altId of alternativeIds) {
         if (altId !== whatsappId) {
           // Skip the original
-          const altKey = keyPattern.replace('${whatsappId}', altId);
+          const altKey = keyPattern.replaceAll('${whatsappId}', altId);
           value = await this.redisService.getEncrypted(altKey);
 
           if (value) {
@@ -97,7 +97,7 @@ export class WhatsAppRedisService {
     ttl?: number,
   ): Promise<void> {
     const normalizedId = this.idNormalizer.normalize(whatsappId);
-    const key = keyPattern.replace('${whatsappId}', normalizedId);
+    const key = keyPattern.replaceAll('${whatsappId}', normalizedId);
     await this.redisService.set(key, value, ttl);
   }
 
@@ -111,7 +111,7 @@ export class WhatsAppRedisService {
     ttl?: number,
   ): Promise<void> {
     const normalizedId = this.idNormalizer.normalize(whatsappId);
-    const key = keyPattern.replace('${whatsappId}', normalizedId);
+    const key = keyPattern.replaceAll('${whatsappId}', normalizedId);
     await this.redisService.setEncrypted(key, value, ttl);
   }
 
@@ -122,7 +122,7 @@ export class WhatsAppRedisService {
     const possibleIds = this.idNormalizer.getPossibleFormats(whatsappId);
 
     for (const id of possibleIds) {
-      const key = keyPattern.replace('${whatsappId}', id);
+      const key = keyPattern.replaceAll('${whatsappId}', id);
       await this.redisService.del(key);
     }
   }

@@ -42,7 +42,6 @@ describe('EventDispatcherService', () => {
 
     // Clear all timers
     jest.clearAllTimers();
-    jest.useFakeTimers();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -102,7 +101,6 @@ describe('EventDispatcherService', () => {
   afterEach(() => {
     jest.clearAllMocks();
     jest.clearAllTimers();
-    jest.useRealTimers();
   });
 
   it('should be defined', () => {
@@ -594,11 +592,17 @@ describe('EventDispatcherService', () => {
 
   describe('Stats reporter', () => {
     it('should start periodic stats reporter', () => {
+      // Use fake timers for this test
+      jest.useFakeTimers();
+      
       // Fast-forward time
       jest.advanceTimersByTime(60000);
 
       // Assert - Stats should be logged (but we can't easily test console output)
       expect(service.getEventStats).toBeDefined();
+      
+      // Clean up
+      jest.useRealTimers();
     });
   });
 
