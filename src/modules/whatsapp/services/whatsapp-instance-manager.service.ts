@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Client, LocalAuth } from 'whatsapp-web.js';
 import * as qrcode from 'qrcode-terminal';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { SessionDirectoryUtil } from '../../../common/utils/session-directory.util';
 
 export interface WhatsAppInstance {
   phoneNumber: string;
@@ -46,7 +47,9 @@ export class WhatsAppInstanceManager implements OnModuleDestroy {
 
     // Create unique paths and IDs for this instance
     const clientId = config.clientId || `pulse-bot-${phoneNumber}`;
-    const sessionPath = config.sessionPath || `./whatsapp-sessions/${phoneNumber}`;
+    // Ensure session directory exists with proper permissions
+    const basePath = config.sessionPath?.replace(`/${phoneNumber}`, '') || './whatsapp-sessions';
+    const sessionPath = await SessionDirectoryUtil.ensureSessionDirectory(phoneNumber, basePath);
     const chromiumPort = config.chromiumPort || this.allocatePort();
 
     this.logger.log(`Creating WhatsApp instance for ${phoneNumber}`);
@@ -63,10 +66,14 @@ export class WhatsAppInstanceManager implements OnModuleDestroy {
         '--disable-accelerated-2d-canvas',
         '--no-first-run',
         '--no-zygote',
+        '--single-process', // Help with permission issues
         '--disable-gpu',
+        '--disable-features=site-per-process', // Reduce resource usage
         `--remote-debugging-port=${chromiumPort}`,
         `--user-data-dir=${sessionPath}/chrome-profile`, // Isolated Chrome profile
       ],
+      // Additional options to handle permission issues
+      ignoreDefaultArgs: ['--disable-extensions'],
     };
 
     // Create WhatsApp Web client
@@ -98,9 +105,18 @@ export class WhatsAppInstanceManager implements OnModuleDestroy {
     try {
       await client.initialize();
       this.logger.log(`WhatsApp instance for ${phoneNumber} initialized successfully`);
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`Failed to initialize instance for ${phoneNumber}:`, error);
       instance.status = 'failed';
+      
+      // Check for permission errors
+      if (error.message?.includes('Permission denied') || 
+          error.message?.includes('SingletonLock') ||
+          error.message?.includes('EACCES')) {
+        this.logger.error(`Permission error detected. Please run: sudo ./scripts/fix-whatsapp-permissions.sh`);
+        throw new Error(`WhatsApp initialization failed due to permission issues. Please check file permissions for ${sessionPath}`);
+      }
+      
       throw error;
     }
 
@@ -134,6 +150,10 @@ export class WhatsAppInstanceManager implements OnModuleDestroy {
     this.logger.log(`Removing WhatsApp instance for ${phoneNumber}`);
 
     try {
+      // Clean up session directory first
+      const basePath = instance.sessionPath?.replace(`/${phoneNumber}`, '') || './whatsapp-sessions';
+      await SessionDirectoryUtil.cleanupSessionDirectory(phoneNumber, basePath);
+      
       // Logout and destroy the client
       await instance.client.logout();
       await instance.client.destroy();
