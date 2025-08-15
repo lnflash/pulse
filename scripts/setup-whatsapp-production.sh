@@ -58,11 +58,12 @@ if grep -q "DISABLE_WHATSAPP_WEB=true" "$ENV_FILE"; then
     sed -i "s/^DISABLE_WHATSAPP_WEB=true/#DISABLE_WHATSAPP_WEB=true/g" "$ENV_FILE"
 fi
 
-# Add new configuration
+# Add new configuration (using simpler format)
 echo "" >> "$ENV_FILE"
 echo "# WhatsApp Configuration (added by setup script)" >> "$ENV_FILE"
-echo "WHATSAPP_INSTANCES='[{\"phoneNumber\":\"$PHONE_NUMBER\",\"enabled\":true}]'" >> "$ENV_FILE"
 echo "WHATSAPP_DEFAULT_PHONE=$PHONE_NUMBER" >> "$ENV_FILE"
+echo "# Alternative: Use JSON format for multiple instances" >> "$ENV_FILE"
+echo "# WHATSAPP_INSTANCES='[{\"phoneNumber\":\"$PHONE_NUMBER\",\"enabled\":true}]'" >> "$ENV_FILE"
 
 echo -e "${GREEN}✅ Configuration updated${NC}"
 echo ""

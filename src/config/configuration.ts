@@ -15,12 +15,29 @@ export default () => ({
 
   // WhatsApp Web Multi-Instance Configuration
   whatsappWeb: {
-    instances: process.env.WHATSAPP_INSTANCES
-      ? process.env.WHATSAPP_INSTANCES.split(',').map((phone) => ({
-          phoneNumber: phone.trim(),
+    instances: (() => {
+      // Try to parse as JSON first (new format)
+      if (process.env.WHATSAPP_INSTANCES) {
+        try {
+          const parsed = JSON.parse(process.env.WHATSAPP_INSTANCES);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          // Fall back to comma-separated format
+          return process.env.WHATSAPP_INSTANCES.split(',').map((phone) => ({
+            phoneNumber: phone.trim(),
+            enabled: true,
+          }));
+        }
+      }
+      // Check for default phone as fallback
+      if (process.env.WHATSAPP_DEFAULT_PHONE) {
+        return [{
+          phoneNumber: process.env.WHATSAPP_DEFAULT_PHONE,
           enabled: true,
-        }))
-      : [],
+        }];
+      }
+      return [];
+    })(),
     defaultSessionPath: process.env.WHATSAPP_SESSION_PATH || './whatsapp-sessions',
     chromeDebugPortStart: parseInt(process.env.CHROME_DEBUG_PORT_START || '9222', 10),
     autoReconnect: process.env.WHATSAPP_AUTO_RECONNECT !== 'false',
