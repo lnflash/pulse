@@ -16,8 +16,8 @@ import { SecurityMiddleware } from './common/middleware/security.middleware';
 import { ApiRateLimitMiddleware } from './common/middleware/api-rate-limit.middleware';
 import { CryptoModule } from './common/crypto/crypto.module';
 import { HealthController } from './health.controller';
-import { CatchAllController } from './common/controllers/catch-all.controller';
 import { CommonModule } from './modules/common/common.module';
+import { CatchAllModule } from './common/modules/catch-all.module';
 
 @Module({
   imports: [
@@ -43,8 +43,11 @@ import { CommonModule } from './modules/common/common.module';
     AuthModule,
     NotificationsModule,
     AdminDashboardModule,
+    
+    // Catch-all module MUST be imported last
+    CatchAllModule,
   ],
-  controllers: [HealthController, CatchAllController],
+  controllers: [HealthController], // CatchAllController moved to separate module
   providers: [SecurityMiddleware, ApiRateLimitMiddleware],
 })
 export class AppModule implements NestModule {

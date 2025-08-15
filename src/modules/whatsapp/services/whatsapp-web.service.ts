@@ -32,14 +32,18 @@ export class WhatsAppWebService
   async onModuleInit() {
     // Skip initialization in test environment
     if (process.env.NODE_ENV === 'test' || process.env.DISABLE_WHATSAPP_WEB === 'true') {
-      this.logger.log('WhatsApp Web initialization skipped for testing');
+      this.logger.log('WhatsApp Web initialization skipped');
       return;
     }
 
     try {
       // Clean up any stuck Chrome processes before initialization
       this.logger.log('Cleaning up any stuck Chrome processes...');
-      await ChromeCleanupUtil.cleanup();
+      try {
+        await ChromeCleanupUtil.cleanup();
+      } catch (cleanupError) {
+        this.logger.warn('Chrome cleanup failed, continuing anyway:', cleanupError.message);
+      }
 
       // Get instance configurations
       const instances = this.configService.get<InstanceConfiguration[]>(
@@ -48,23 +52,21 @@ export class WhatsAppWebService
       );
 
       if (instances.length === 0) {
-        // No instances configured, initialize a default one if needed
+        // No instances configured, WhatsApp Web will be inactive
         this.logger.warn(
-          'No WhatsApp instances configured. Add WHATSAPP_INSTANCES to your .env file.',
+          'No WhatsApp instances configured. WhatsApp Web features will be unavailable.',
         );
-        // For backward compatibility, create a single instance
-        const defaultPhone = process.env.WHATSAPP_DEFAULT_PHONE || '';
-        if (defaultPhone) {
-          instances.push({
-            phoneNumber: defaultPhone,
-            enabled: true,
-          });
-        }
+        this.logger.warn(
+          'To enable WhatsApp, set WHATSAPP_DEFAULT_PHONE or WHATSAPP_INSTANCES in your .env file.',
+        );
+        this.isInitialized = false;
+        return;
       }
 
-      this.logger.log(`Initializing ${instances.length} WhatsApp instance(s)...`);
+      this.logger.log(`Found ${instances.length} WhatsApp instance configuration(s)`);
 
-      // Initialize each configured instance
+      // Initialize each configured instance with error handling
+      let successCount = 0;
       for (const instanceConfig of instances) {
         if (!instanceConfig.enabled) {
           this.logger.log(`Skipping disabled instance: ${instanceConfig.phoneNumber}`);
@@ -72,25 +74,43 @@ export class WhatsAppWebService
         }
 
         try {
-          this.logger.log(`Initializing instance for ${instanceConfig.phoneNumber}...`);
+          this.logger.log(`Attempting to initialize instance for ${instanceConfig.phoneNumber}...`);
           await this.instanceManager.createInstance({
             phoneNumber: instanceConfig.phoneNumber,
             sessionPath: instanceConfig.sessionPath,
           });
-          this.logger.log(`Instance ${instanceConfig.phoneNumber} initialized successfully`);
-        } catch (error) {
-          this.logger.error(`Failed to initialize instance ${instanceConfig.phoneNumber}:`, error);
+          this.logger.log(`✓ Instance ${instanceConfig.phoneNumber} initialized successfully`);
+          successCount++;
+        } catch (error: any) {
+          this.logger.error(`✗ Failed to initialize instance ${instanceConfig.phoneNumber}:`, error.message);
+          
+          // Log specific error guidance
+          if (error.message?.includes('setUserAgent') || error.message?.includes('CDPPage')) {
+            this.logger.error('This appears to be a Puppeteer/Chrome issue.');
+            this.logger.error('Please ensure Chrome is installed: apt-get install chromium-browser');
+          } else if (error.message?.includes('Permission denied')) {
+            this.logger.error('Permission issue detected. Run: sudo ./scripts/fix-whatsapp-permissions.sh');
+          }
+          
+          // Continue with other instances even if one fails
+          continue;
         }
       }
 
-      this.isInitialized = true;
-      this.logger.log('WhatsApp Web service initialized successfully');
-
-      // Set up event proxying from instance manager to this service
-      this.setupEventProxying();
+      if (successCount > 0) {
+        this.isInitialized = true;
+        this.logger.log(`WhatsApp Web service initialized with ${successCount} instance(s)`);
+        
+        // Set up event proxying from instance manager to this service
+        this.setupEventProxying();
+      } else {
+        this.logger.error('No WhatsApp instances could be initialized. Service will be inactive.');
+        this.isInitialized = false;
+      }
     } catch (error) {
-      this.logger.error('Failed to initialize WhatsApp Web service:', error);
+      this.logger.error('Critical error during WhatsApp Web service initialization:', error);
       this.logger.error('Stack trace:', error.stack);
+      this.isInitialized = false;
     }
   }
 
