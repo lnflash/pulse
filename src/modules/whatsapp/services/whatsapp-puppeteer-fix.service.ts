@@ -128,7 +128,7 @@ export class WhatsAppPuppeteerFixService {
         // Wrap setUserAgent in try-catch
         const page = this.pupPage;
         const originalSetUserAgent = page.setUserAgent;
-        page.setUserAgent = async function(userAgent) {
+        page.setUserAgent = async function(userAgent: string) {
           try {
             return await originalSetUserAgent.call(this, userAgent);
           } catch (error) {
