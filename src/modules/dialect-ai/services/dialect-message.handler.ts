@@ -163,7 +163,7 @@ export class DialectMessageHandler extends BaseMessageHandler {
     }
 
     // Send suggested actions as buttons if platform supports it
-    if (response.suggestedActions && platform.sendButtons) {
+    if (response.suggestedActions && (platform as any).sendButtons) {
       await this.sendSuggestedActions(
         message,
         platform,

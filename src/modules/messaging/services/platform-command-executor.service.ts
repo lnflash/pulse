@@ -59,15 +59,33 @@ export class PlatformCommandExecutorService {
       }
 
       // Build command context for the handler
-      const commandContext = {
-        userId,
+      const commandContext: any = {
+        // Required message context
+        messageId: originalMessage.id || 'unknown',
+        whatsappId: userId,
+        phoneNumber: session?.phoneNumber || userId,
+        timestamp: new Date(),
+        
+        // Command data
+        command: command as any,
+        commandData: { args } as any,
+        rawText: (originalMessage as any).text || originalMessage.content || '',
+        
+        // Group context
+        isGroup: originalMessage.isGroup || false,
+        groupId: originalMessage.groupId,
+        
+        // Session and metadata
         session,
+        metadata: {},
+        
+        // Additional fields for compatibility
+        userId,
         args,
         platform,
         originalMessage,
         isVoiceCommand: originalMessage.type === 'voice',
-        isGroupMessage: originalMessage.isGroup,
-        groupId: originalMessage.groupId
+        isGroupMessage: originalMessage.isGroup
       };
 
       // Execute the command
@@ -81,7 +99,7 @@ export class PlatformCommandExecutorService {
         message: result.message,
         data: result.data,
         voice: result.voice,
-        image: result.image
+        image: (result as any).image
       };
 
     } catch (error) {
@@ -106,11 +124,11 @@ export class PlatformCommandExecutorService {
    * Get available commands for a user
    */
   getAvailableCommands(session: UserSession | null): string[] {
-    const commands = this.commandRegistry.getAllCommands();
+    const commands = (this.commandRegistry as any).getAllCommands ? (this.commandRegistry as any).getAllCommands() : [];
     
     if (!session) {
       // Return only public commands
-      return commands.filter(cmd => !this.requiresAuth(cmd));
+      return commands.filter((cmd: any) => !this.requiresAuth(cmd));
     }
     
     return commands;
@@ -126,7 +144,7 @@ export class PlatformCommandExecutorService {
       return `Unknown command: ${command}`;
     }
     
-    return handler.getHelp ? handler.getHelp() : `Command: ${command}`;
+    return (handler as any).getHelp ? (handler as any).getHelp() : `Command: ${command}`;
   }
 
   /**

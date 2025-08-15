@@ -330,7 +330,7 @@ export class WhatsAppWebAdapter implements IMessagePlatform {
             .filter((p: any) => p.isAdmin)
             .map((p: any) => p.id._serialized),
           created: new Date(groupChat.createdAt * 1000),
-          profilePicture: await chat.getProfilePicUrl()
+          profilePicture: undefined // await chat.getProfilePicUrl() - method not available
         };
       }
       
@@ -345,7 +345,7 @@ export class WhatsAppWebAdapter implements IMessagePlatform {
     try {
       const formattedParticipants = participants.map(p => this.formatChatId(p));
       const result = await this.client.createGroup(name, formattedParticipants);
-      return result.gid._serialized;
+      return typeof result === 'string' ? result : (result as any).gid._serialized;
     } catch (error) {
       this.logger.error('Error creating group:', error);
       throw error;

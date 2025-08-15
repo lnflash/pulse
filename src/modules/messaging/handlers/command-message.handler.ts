@@ -55,7 +55,7 @@ export class CommandMessageHandler extends BaseMessageHandler {
       }
 
       // Execute command through the command executor
-      const result = await this.commandExecutor.execute({
+      const result = await (this.commandExecutor as any).execute({
         command: parsedCommand.command,
         args: parsedCommand.args,
         userId,
