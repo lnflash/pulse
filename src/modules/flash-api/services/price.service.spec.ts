@@ -43,7 +43,12 @@ describe('PriceService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn()
+            get: jest.fn().mockImplementation((key: string, defaultValue?: any) => {
+              if (key === 'cache.priceTtl') {
+                return defaultValue;
+              }
+              return defaultValue;
+            })
           }
         },
         {
@@ -84,7 +89,10 @@ describe('PriceService', () => {
   describe('Constructor', () => {
     it('should use default cache TTL when not configured', () => {
       // Arrange
-      configService.get.mockReturnValue(undefined);
+      configService.get.mockImplementation((key: string, defaultValue?: any) => {
+        // Return defaultValue for any key when no specific value is configured
+        return defaultValue;
+      });
 
       // Act
       const newService = new PriceService(configService, flashApiService, redisService);
@@ -645,10 +653,13 @@ describe('PriceService', () => {
 
     it('should handle zero offset in price data', async () => {
       // Arrange
+      // With offset = 0, base represents the actual value without decimal shifting
+      // For a realistic BTC price of ~$43,215, each satoshi should be worth ~0.00043215 cents
+      // But with offset = 0, we can't represent fractions, so let's use a simpler test case
       const zeroOffsetData = {
         realtimePrice: {
           btcSatPrice: {
-            base: 43215000000,
+            base: 1,  // 1 cent per satoshi (unrealistic but tests the math)
             offset: 0
           },
           denominatorCurrency: 'USD',
@@ -663,7 +674,8 @@ describe('PriceService', () => {
       const result = await service.getBitcoinPrice('USD');
 
       // Assert
-      expect(result.btcPrice).toBeCloseTo(432150000000000.00, 0);
+      // 1 cent per sat * 100M sats = 100M cents = $1M per BTC
+      expect(result.btcPrice).toBeCloseTo(1000000.00, 0);
     });
 
     it('should handle concurrent requests for same currency', async () => {

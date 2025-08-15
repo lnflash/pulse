@@ -121,7 +121,7 @@ export class InvoiceService {
       expiresAt: parsedInvoice.timeExpireDate
         ? new Date(parsedInvoice.timeExpireDate * 1000)
         : new Date(Date.now() + 3600000), // 1 hour default
-      walletCurrency: 'BTC',
+      walletCurrency: 'USD', // No-amount invoices use USD wallet
     };
   }
 
@@ -173,7 +173,7 @@ export class InvoiceService {
         );
       }
       if (error.code === 'INSUFFICIENT_BALANCE') {
-        throw new BadRequestException('Insufficient balance to create this invoice.');
+        throw new BadRequestException(error.message || 'Insufficient balance to create this invoice.');
       }
 
       throw new BadRequestException(error.message || 'Failed to create invoice');

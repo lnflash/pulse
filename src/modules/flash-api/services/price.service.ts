@@ -73,7 +73,12 @@ export class PriceService {
         return null;
       }
 
-      return JSON.parse(cachedData) as PriceInfo;
+      const parsed = JSON.parse(cachedData);
+      // Convert timestamp string back to Date object
+      return {
+        ...parsed,
+        timestamp: new Date(parsed.timestamp)
+      } as PriceInfo;
     } catch (error) {
       this.logger.warn(`Error getting cached price: ${error.message}`);
       return null;
@@ -218,8 +223,8 @@ export class PriceService {
    * Get human-readable time ago string
    */
   private getTimeAgo(timestamp: Date): string {
-    const now = new Date();
-    const diffMs = now.getTime() - timestamp.getTime();
+    const now = Date.now();
+    const diffMs = now - timestamp.getTime();
     const diffSecs = Math.floor(diffMs / 1000);
 
     if (diffSecs < 60) {

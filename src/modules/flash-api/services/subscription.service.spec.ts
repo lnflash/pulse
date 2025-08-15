@@ -33,7 +33,7 @@ describe('SubscriptionService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn()
+            get: jest.fn().mockReturnValue('https://api.flashapp.me/graphql')
           }
         }
       ],
