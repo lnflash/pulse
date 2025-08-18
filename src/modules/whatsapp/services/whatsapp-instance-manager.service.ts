@@ -59,21 +59,23 @@ export class WhatsAppInstanceManager implements OnModuleDestroy {
     // Configure Puppeteer with isolated profile and port
     const puppeteerConfig = {
       headless: true,
+      executablePath: '/usr/bin/google-chrome',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process', // Help with permission issues
         '--disable-gpu',
-        '--disable-features=site-per-process', // Reduce resource usage
+        '--no-first-run',
+        '--disable-extensions',
+        '--disable-default-apps',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection',
         `--remote-debugging-port=${chromiumPort}`,
         `--user-data-dir=${sessionPath}/chrome-profile`, // Isolated Chrome profile
-      ],
-      // Additional options to handle permission issues
-      ignoreDefaultArgs: ['--disable-extensions'],
+      ]
     };
 
     // Create WhatsApp Web client
