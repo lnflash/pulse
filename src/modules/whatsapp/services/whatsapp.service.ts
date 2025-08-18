@@ -3798,12 +3798,35 @@ Once you have contacts, you can:
 
     // Check if this looks like a greeting or casual message
     if (rawText && this.isGreetingOrCasualMessage(rawText)) {
-      if (session?.isVerified) {
-        // Logged in user - friendly greeting
-        message = "👋 Hey there! How can I help you today?\n\nType `help` to see what I can do, or just tell me what you need!";
-      } else {
-        // Not logged in - friendly greeting with onboarding
-        message = "👋 Hello! Welcome to Flash!\n\n⚡ I'm your Lightning payment assistant. To get started:\n\n🔗 Type `link` to connect your Flash account\n💡 Type `help` to see what I can do\n\nOnce connected, you can send money, check balances, and much more!";
+      // Try to process through AI for natural conversation, even for unlinked users
+      try {
+        // Create a minimal context for AI processing
+        const context = {
+          userId: null,
+          whatsappId: whatsappId || 'unknown',
+          isVerified: session?.isVerified || false,
+          consentGiven: true, // Allow casual conversation
+          isVoiceMode: false,
+          isGreeting: true,
+        };
+        
+        // Process through Gemini AI for a natural response
+        const aiResponse = await this.geminiAiService.processQuery(rawText, context);
+        
+        // Add helpful context based on link status
+        if (!session?.isVerified) {
+          message = aiResponse + "\n\n💡 By the way, I can do much more once you connect your Flash account! Type `link` to get started.";
+        } else {
+          message = aiResponse;
+        }
+      } catch (error) {
+        // Fallback to static responses if AI fails
+        this.logger.error(`AI processing failed for greeting: ${error.message}`);
+        if (session?.isVerified) {
+          message = "👋 Hey there! How can I help you today?\n\nType `help` to see what I can do, or just tell me what you need!";
+        } else {
+          message = "👋 Hello! Welcome to Flash!\n\n⚡ I'm your Lightning payment assistant. To get started:\n\n🔗 Type `link` to connect your Flash account\n💡 Type `help` to see what I can do\n\nOnce connected, you can send money, check balances, and much more!";
+        }
       }
     } else {
       // Not a greeting - provide helpful guidance
@@ -3833,7 +3856,7 @@ Once you have contacts, you can:
       /^(good morning|good afternoon|good evening)$/,
       /^(morning|afternoon|evening)$/,
       /^(what's up|whats up|wassup)$/,
-      /^(how are you|how you doing)$/,
+      /^(how are you|how you doing|how are you\?|hows it going|how's it going)$/,
       
       // Casual expressions
       /^(thanks|thank you|ty)$/,
