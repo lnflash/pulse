@@ -246,6 +246,11 @@ export class WhatsAppInstanceManager implements OnModuleDestroy {
     client.on('message', async (message) => {
       instance.lastActivity = new Date();
 
+      // Skip echo messages (messages we sent)
+      if (message.fromMe) {
+        return;
+      }
+
       // Emit message with instance information
       this.eventEmitter.emit('whatsapp.message', {
         phoneNumber,

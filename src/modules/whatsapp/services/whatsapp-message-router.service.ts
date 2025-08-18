@@ -98,14 +98,17 @@ export class WhatsAppMessageRouter {
 
     try {
       const client = instance.client;
+      
+      // Ensure recipient is properly formatted
+      const formattedRecipient = this.formatWhatsAppId(recipient);
 
       if (typeof content === 'string') {
         // Send text message
-        await client.sendMessage(recipient, content);
+        await client.sendMessage(formattedRecipient, content);
       } else {
         // Handle complex content (text + media/voice)
         if (content.text) {
-          await client.sendMessage(recipient, content.text);
+          await client.sendMessage(formattedRecipient, content.text);
         }
 
         if (content.voice) {
@@ -114,11 +117,11 @@ export class WhatsAppMessageRouter {
             'audio/ogg; codecs=opus',
             content.voice.toString('base64'),
           );
-          await client.sendMessage(recipient, media, { sendAudioAsVoice: true });
+          await client.sendMessage(formattedRecipient, media, { sendAudioAsVoice: true });
         } else if (content.media) {
           // Send regular media
           const media = new MessageMedia('image/png', content.media.toString('base64'));
-          await client.sendMessage(recipient, media);
+          await client.sendMessage(formattedRecipient, media);
         }
       }
 
@@ -209,6 +212,22 @@ export class WhatsAppMessageRouter {
         byInstance: {},
       },
     };
+  }
+
+  /**
+   * Format a phone number or chat ID for WhatsApp
+   */
+  private formatWhatsAppId(id: string): string {
+    // If already formatted, return as is
+    if (id.includes('@')) {
+      return id;
+    }
+    
+    // Remove any non-numeric characters
+    const cleaned = id.replace(/\D/g, '');
+    
+    // Format as WhatsApp chat ID
+    return `${cleaned}@c.us`;
   }
 
   /**
