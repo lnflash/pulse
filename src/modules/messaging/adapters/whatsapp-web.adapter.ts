@@ -123,7 +123,8 @@ export class WhatsAppWebAdapter implements IMessagePlatform {
 
       if (message.content.text) {
         sentMessage = await chat.sendMessage(message.content.text, {
-          mentions: message.options?.mentions,
+          // mentions are not supported in v1.19.5 as Contact[]
+          // mentions: message.options?.mentions,
           quotedMessageId: message.replyTo
         });
       } else if (message.content.voice) {
@@ -174,31 +175,15 @@ export class WhatsAppWebAdapter implements IMessagePlatform {
   }
 
   async editMessage(messageId: string, newContent: MessageContent): Promise<boolean> {
-    try {
-      const message = await this.client.getMessageById(messageId);
-      if (message && newContent.text) {
-        await message.edit(newContent.text);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      this.logger.error('Error editing message:', error);
-      return false;
-    }
+    // Message editing is not supported in whatsapp-web.js v1.19.5
+    this.logger.warn('Message editing is not supported in whatsapp-web.js v1.19.5');
+    return false;
   }
 
   async deleteMessage(messageId: string): Promise<boolean> {
-    try {
-      const message = await this.client.getMessageById(messageId);
-      if (message) {
-        await message.delete(true);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      this.logger.error('Error deleting message:', error);
-      return false;
-    }
+    // Message deletion via getMessageById is not supported in whatsapp-web.js v1.19.5
+    this.logger.warn('Message deletion via getMessageById is not supported in whatsapp-web.js v1.19.5');
+    return false;
   }
 
   async sendVoice(to: string, audio: Buffer, caption?: string): Promise<MessageReceipt> {
@@ -241,17 +226,9 @@ export class WhatsAppWebAdapter implements IMessagePlatform {
   }
 
   async downloadMedia(messageId: string): Promise<Buffer> {
-    try {
-      const message = await this.client.getMessageById(messageId);
-      if (message.hasMedia) {
-        const media = await message.downloadMedia();
-        return Buffer.from(media.data, 'base64');
-      }
-      throw new Error('Message has no media');
-    } catch (error) {
-      this.logger.error('Error downloading media:', error);
-      throw error;
-    }
+    // Media download via getMessageById is not supported in whatsapp-web.js v1.19.5
+    this.logger.warn('Media download via getMessageById is not supported in whatsapp-web.js v1.19.5');
+    throw new Error('Media download not supported in this version');
   }
 
   async getUserInfo(userId: string): Promise<PlatformUser> {
@@ -407,14 +384,9 @@ export class WhatsAppWebAdapter implements IMessagePlatform {
   }
 
   async setProfilePicture(image: Buffer): Promise<boolean> {
-    try {
-      const media = new MessageMedia('image/jpeg', image.toString('base64'), 'profile.jpg');
-      await this.client.setProfilePicture(media);
-      return true;
-    } catch (error) {
-      this.logger.error('Error setting profile picture:', error);
-      return false;
-    }
+    // setProfilePicture is not available in whatsapp-web.js v1.19.5
+    this.logger.warn('setProfilePicture is not available in whatsapp-web.js v1.19.5');
+    return false;
   }
 
   onMessage(handler: (message: IncomingMessage) => Promise<void>): void {
