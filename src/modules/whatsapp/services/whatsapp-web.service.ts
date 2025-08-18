@@ -36,6 +36,11 @@ export class WhatsAppWebService
       return;
     }
 
+    // Start WhatsApp initialization in the background to not block app startup
+    this.initializeWhatsAppInBackground();
+  }
+
+  private async initializeWhatsAppInBackground() {
     try {
       // Clean up any stuck Chrome processes before initialization
       this.logger.log('Cleaning up any stuck Chrome processes...');
