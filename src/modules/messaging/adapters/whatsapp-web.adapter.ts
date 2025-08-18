@@ -123,8 +123,7 @@ export class WhatsAppWebAdapter implements IMessagePlatform {
 
       if (message.content.text) {
         sentMessage = await chat.sendMessage(message.content.text, {
-          // mentions are not supported in v1.19.5 as Contact[]
-          // mentions: message.options?.mentions,
+          mentions: message.options?.mentions,
           quotedMessageId: message.replyTo
         });
       } else if (message.content.voice) {
