@@ -1524,7 +1524,18 @@ export class CommandParserService {
           } else if (args.action === 'group') {
             args.mode = match[2].trim().toLowerCase();
           } else if (args.action === 'voice') {
-            args.mode = match[2].trim().toLowerCase();
+            // Parse voice subcommands more carefully
+            const voiceParams = match[2].trim();
+            const voiceParts = voiceParams.split(/\s+/);
+            
+            if (voiceParts[0]) {
+              args.mode = voiceParts[0].toLowerCase();
+              
+              // For 'default' command, capture the voice name
+              if (args.mode === 'default' && voiceParts[1]) {
+                args.extra = voiceParts.slice(1).join(' ');
+              }
+            }
           } else if (args.action === 'analytics') {
             args.period = match[2]?.trim().toLowerCase() || 'daily';
           }
