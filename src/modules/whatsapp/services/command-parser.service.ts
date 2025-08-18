@@ -893,7 +893,11 @@ export class CommandParserService {
     }
 
     // Other voice settings variations
+    // But skip if this is an admin command (like "admin voice off")
+    const isAdminVoiceCommand = lowerText.startsWith('admin voice');
+    
     if (
+      !isAdminVoiceCommand && (
       lowerText.includes('voice settings') ||
       lowerText.includes('voice mode') ||
       lowerText.includes('voice options') ||
@@ -929,7 +933,7 @@ export class CommandParserService {
       lowerText === 'audio' ||
       lowerText === 'speech' ||
       lowerText === 'tts'
-    ) {
+    )) {
       // Extract specific voice action if present
       const args: any = {};
 
