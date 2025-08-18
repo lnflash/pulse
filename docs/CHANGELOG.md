@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2025-08-18
+
+### 🚀 Major Release: Conversational AI Interface
+
+This release transforms Pulse from a command-based bot into a true conversational assistant that provides a seamless, enjoyable experience for all users.
+
+### Added
+- **AI-Powered Conversations**: All unknown messages now processed through Gemini AI for natural responses
+- **Natural Language Understanding**: Ask questions like "What is Flash?" and get informative responses
+- **Smart Onboarding**: Unlinked users get contextual help while exploring features
+- **Service-Aware AI**: AI has full context about Flash/Pulse capabilities
+- **Multi-Instance WhatsApp Support**: Manage multiple WhatsApp numbers simultaneously
+- **Message Router**: Centralized routing system for all messaging platforms
+- **Enhanced Greeting Detection**: Better recognition of casual messages and greetings
+- **Message Normalization Engine Foundation**: Core components for multi-platform messaging
+
+### Changed
+- Admin voice commands renamed to `admin audio` to avoid conflicts with regular voice commands
+- Improved fallback messages when AI is unavailable
+- Better differentiation between linked and unlinked user experiences
+- Unknown messages no longer return "I don't recognize that command"
+- All users can now have natural conversations with Pulse
+
+### Fixed
+- Admin voice/audio command parsing conflicts resolved
+- Duplicate message processing in WhatsApp eliminated
+- Session persistence issues with WhatsApp Web.js
+- WhatsApp authentication completion after QR code scanning
+- vCard contact import functionality improved
+
+### Breaking Changes
+- Admin commands changed from `admin voice` to `admin audio`:
+  - Use `admin audio on/off/always` instead of `admin voice on/off/always`
+  - Use `admin audio default [name]` instead of `admin voice default [name]`
+
+### Technical Improvements
+- Established foundation for message normalization engine
+- Implemented WhatsAppMessageRouter for multi-instance support
+- Enhanced CommandParserService with flexible pattern matching
+- Integrated AI processing for all unknown messages
+- Created WhatsAppInstanceManager for connection abstraction
+
 ## [2.1.0] - 2025-07-08
 
 ### Added

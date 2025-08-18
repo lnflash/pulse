@@ -27,15 +27,24 @@ See `/docs/BTC_WALLET_POLICY.md` for full details.
 - Voice management is dynamic - users can add custom ElevenLabs voices
 - Keep voice messages short and natural for better speech synthesis
 
-## Service Architecture
+## Service Architecture (v3.0.0+)
 
 ### Core Services
-- **WhatsApp Integration**: Uses whatsapp-web.js for message handling
+- **WhatsApp Integration**: Multi-instance support with whatsapp-web.js
+- **Message Normalization Engine**: Foundation for multi-platform messaging
+- **AI Conversational Interface**: Gemini AI processes all unknown messages
 - **Flash API**: GraphQL API for payments and account management
 - **Payment Types**: 
   - Intraledger (Flash-to-Flash) - Instant and free
   - Lightning Network - For external payments
   - Escrow - For users without Flash accounts
+
+### Message Processing Flow (v3.0.0+)
+1. Message received by WhatsAppInstanceManager
+2. Routed through WhatsAppMessageRouter for normalization
+3. Parsed by CommandParserService for intent extraction
+4. Unknown messages processed by GeminiAiService for natural responses
+5. Context-aware responses based on user link status
 
 ### Key Implementation Notes
 
@@ -94,10 +103,13 @@ See `/docs/BTC_WALLET_POLICY.md` for full details.
 - `voice add [name] [id]` - Add custom voice
 - `voice remove [name]` - Remove voice
 
-### Admin Voice Commands
-- `admin voice default [name]` - Set default voice for all users
-- `admin voice default` - View current default voice
-- `admin voice default clear` - Clear default voice setting
+### Admin Audio Commands (v3.0.0+)
+- `admin audio on/off/always` - Control voice response modes
+- `admin audio default [name]` - Set default voice for all users
+- `admin audio default` - View current default voice
+- `admin audio default clear` - Clear default voice setting
+
+Note: Commands changed from `admin voice` to `admin audio` in v3.0.0 to avoid conflicts with regular voice commands.
 
 ## Development Guidelines
 

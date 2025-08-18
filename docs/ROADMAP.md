@@ -3,12 +3,14 @@
 ## Mission
 Make Lightning payments accessible to everyone through familiar messaging platforms, with deployment as simple as possible across any infrastructure.
 
-## Current Status (v2.0.0) ✅
-- WhatsApp Web.js integration
+## Current Status (v3.0.0) ✅
+- WhatsApp Web.js integration with multi-instance support
 - Account linking with OTP verification
 - Balance checking with multi-currency support
 - Smart caching with manual refresh
-- AI-powered support via Google Gemini
+- ✅ **AI-powered conversational interface via Google Gemini**
+- ✅ **Natural language processing for all users (linked and unlinked)**
+- ✅ **Message normalization engine foundation**
 - ✅ Lightning invoice detection and payment
 - ✅ Payment sending via username/phone/contact
 - ✅ Transaction history viewing
@@ -18,10 +20,50 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
 - ✅ Pending payments for non-Flash users
 - ✅ Admin panel for monitoring
 - ✅ Production deployment scripts
+- ✅ Voice response system with ElevenLabs integration
+- ✅ Admin audio controls (replaced voice commands)
 
-## Phase 1: WhatsApp Business API Migration (Q1 2025)
+## Phase 1: Message Normalization Engine (Completed - v3.0.0) ✅
 
-### v2.0.0 - Business API Foundation
+### v3.0.0 - Conversational AI Foundation
+**Goal:** Transform Pulse from command-based bot to natural conversational assistant
+
+#### Completed Features ✅
+- [x] **AI-Powered Message Processing**: All unknown messages processed through Gemini AI
+- [x] **Natural Language Understanding**: Questions like "What is Flash?" get informative responses
+- [x] **Context-Aware Responses**: AI has full knowledge of Flash/Pulse capabilities
+- [x] **Smart Onboarding**: Unlinked users get contextual help while exploring
+- [x] **Greeting Detection**: Enhanced recognition of casual messages and greetings
+- [x] **Multi-Instance WhatsApp**: Support for multiple WhatsApp numbers simultaneously
+- [x] **Message Router**: Centralized routing system for all messaging platforms
+- [x] **Admin Audio Controls**: Replaced 'admin voice' with 'admin audio' to avoid conflicts
+
+#### Normalization Engine Components
+The foundation for the message normalization engine has been established:
+
+1. **Message Router** (`WhatsAppMessageRouter`):
+   - Handles incoming messages from any WhatsApp instance
+   - Normalizes message format before processing
+   - Routes responses back through correct instance
+
+2. **Command Parser** (`CommandParserService`):
+   - Natural language pattern matching
+   - Intent extraction from user messages
+   - Flexible command recognition
+
+3. **AI Integration** (`GeminiAiService`):
+   - Processes unstructured text into actionable intents
+   - Provides context-aware responses
+   - Handles greetings and casual conversation
+
+4. **Instance Manager** (`WhatsAppInstanceManager`):
+   - Manages multiple WhatsApp connections
+   - Provides abstraction layer for messaging
+   - Foundation for multi-platform support
+
+## Phase 2: WhatsApp Business API Migration (Q1 2025)
+
+### v3.1.0 - Business API Foundation
 **Goal:** Migrate from WhatsApp Web.js to official Business API for stability and Docker support
 
 #### Migration Requirements
@@ -31,9 +73,9 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
 - [ ] Message template support
 - [ ] Media handling updates
 
-## Phase 2: Universal Deployment (Q2 2025)
+## Phase 3: Universal Deployment (Q2 2025)
 
-### v2.1.0 - Docker-First Architecture
+### v3.2.0 - Docker-First Architecture
 **Goal:** One-click deployment on any platform in under 60 seconds
 
 #### Core Infrastructure
@@ -73,9 +115,9 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
 - [ ] QR code config sharing
 - [ ] Auto-discovery of services
 
-## Phase 3: Messaging Layer Abstraction (Q2-Q3 2025)
+## Phase 4: Complete Messaging Abstraction (Q2-Q3 2025)
 
-### v2.2.0 - Platform-Agnostic Architecture
+### v3.3.0 - Platform-Agnostic Architecture
 **Goal:** Support any messaging platform with minimal code changes
 
 #### Architecture Refactoring
@@ -120,32 +162,32 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
   - [ ] NIP-04 encrypted DMs
   - [ ] Lightning address integration
 
-## Phase 4: Enhanced Features (Q3-Q4 2025)
+## Phase 5: Enhanced Features (Q3-Q4 2025)
 
-### v2.3.0 - Rich Media & Interactions
+### v3.4.0 - Rich Media & Interactions
 - [ ] Voice message transcription and commands
 - [ ] Image-based invoice scanning
 - [ ] Video content sharing
 - [ ] Interactive payment buttons
 - [ ] Rich payment receipts with charts
 
-### v2.4.0 - Advanced Payment Features
+### v3.5.0 - Advanced Payment Features
 - [ ] Scheduled payments
 - [ ] Recurring payments/subscriptions
 - [ ] Payment splitting for groups
 - [ ] Multi-signature payment approval
 - [ ] Payment request expiration
 
-### v2.5.0 - AI Enhancement
+### v3.6.0 - AI Enhancement
 - [ ] Multi-provider AI support (OpenAI, Anthropic, local LLMs)
 - [ ] Context-aware responses
 - [ ] Financial insights and analytics
 - [ ] Spending pattern analysis
 - [ ] Natural language payment commands
 
-## Phase 5: Enterprise & Scale (Q4 2025 - Q1 2026)
+## Phase 6: Enterprise & Scale (Q4 2025 - Q1 2026)
 
-### v3.0.0 - Business Tools
+### v4.0.0 - Business Tools
 - [ ] Merchant dashboard
 - [ ] Point-of-sale integration
 - [ ] Invoice generation and tracking
@@ -153,14 +195,14 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
 - [ ] Customer analytics
 - [ ] Multi-user business accounts
 
-### v3.1.0 - Scale & Performance
+### v4.1.0 - Scale & Performance
 - [ ] Horizontal scaling with Kubernetes
 - [ ] Message queue integration (RabbitMQ/Kafka)
 - [ ] Caching layer (Redis Cluster)
 - [ ] Load balancing across instances
 - [ ] Geographic distribution
 
-### v3.2.0 - Compliance & Security
+### v4.2.0 - Compliance & Security
 - [ ] SOC 2 compliance
 - [ ] GDPR compliance tools
 - [ ] Audit logging
@@ -168,9 +210,9 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
 - [ ] End-to-end encryption for all platforms
 - [ ] Hardware security module (HSM) support
 
-## Phase 6: Bitcoin Ecosystem Integration (2026)
+## Phase 7: Bitcoin Ecosystem Integration (2026)
 
-### v4.0.0 - On-chain & eCash Support
+### v5.0.0 - On-chain & eCash Support
 - [ ] On-chain Bitcoin support
   - [ ] UTXO management
   - [ ] Fee estimation
@@ -187,7 +229,7 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
   - [ ] Multi-sig coordination
   - [ ] Community wallet features
 
-### v4.1.0 - Plugin System
+### v5.1.0 - Plugin System
 - [ ] Plugin marketplace
 - [ ] Developer SDK
 - [ ] Custom command creation
@@ -196,23 +238,33 @@ Make Lightning payments accessible to everyone through familiar messaging platfo
 
 ## Implementation Priorities
 
+### Recently Completed ✅
+1. **Message Normalization Engine Foundation** (v3.0.0)
+   - AI-powered conversational interface
+   - Natural language processing for all users
+   - Multi-instance WhatsApp support
+   - Admin audio controls
+
 ### Immediate (Next 30 days)
 1. Begin WhatsApp Business API migration planning
 2. Research Business API requirements and costs
 3. Create migration strategy document
 4. Set up Business API test environment
+5. Extend normalization engine for intent classification
 
 ### Short-term (Next 90 days)
 1. Complete WhatsApp Business API migration
 2. Create Docker Hub organization and CI/CD pipeline
-3. Implement messaging abstraction layer
+3. Complete messaging abstraction layer
 4. Add Discord support as proof of concept
+5. Implement structured intent extraction from AI responses
 
 ### Medium-term (Next 180 days)
 1. Docker deployment infrastructure
 2. Create Umbrel and Start9 packages
-3. Discord integration completion
-4. Voice message enhancements
+3. Discord and Telegram integration completion
+4. Voice message transcription and commands
+5. Full normalization engine with multi-platform support
 
 ## Success Metrics
 
