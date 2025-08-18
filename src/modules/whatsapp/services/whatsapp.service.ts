@@ -3796,44 +3796,82 @@ Once you have contacts, you can:
   ): Promise<string | { text: string; voice?: Buffer; voiceOnly?: boolean }> {
     let message: string;
 
-    // Check if this looks like a greeting or casual message
-    if (rawText && this.isGreetingOrCasualMessage(rawText)) {
-      // Try to process through AI for natural conversation, even for unlinked users
+    // Always try to process through AI for natural conversation
+    if (rawText) {
       try {
-        // Create a minimal context for AI processing
+        // Create context for AI with service information
         const context = {
-          userId: null,
+          userId: session?.flashUserId || null,
           whatsappId: whatsappId || 'unknown',
           isVerified: session?.isVerified || false,
-          consentGiven: true, // Allow casual conversation
+          consentGiven: true, // Allow conversation for all users
           isVoiceMode: false,
-          isGreeting: true,
+          isGreeting: this.isGreetingOrCasualMessage(rawText),
+          serviceInfo: {
+            name: 'Flash/Pulse',
+            description: 'Lightning Network payment service for instant Bitcoin transactions',
+            capabilities: [
+              'Send and receive Bitcoin instantly via Lightning Network',
+              'Check balance and transaction history',
+              'Create payment requests and invoices',
+              'Manage contacts for easy payments',
+              'Play trivia games to earn sats',
+              'Voice-enabled responses',
+              'Group payment features'
+            ],
+            howToStart: 'Type "link" to connect your Flash account',
+            availableCommands: ['send', 'receive', 'balance', 'history', 'contacts', 'help', 'link']
+          }
         };
         
         // Process through Gemini AI for a natural response
         const aiResponse = await this.geminiAiService.processQuery(rawText, context);
         
-        // Add helpful context based on link status
+        // Add contextual help based on user status
         if (!session?.isVerified) {
-          message = aiResponse + "\n\n💡 By the way, I can do much more once you connect your Flash account! Type `link` to get started.";
+          // For unlinked users, be more helpful about getting started
+          const isAskingAboutService = rawText.toLowerCase().includes('flash') || 
+                                       rawText.toLowerCase().includes('pulse') ||
+                                       rawText.toLowerCase().includes('what') ||
+                                       rawText.toLowerCase().includes('how');
+          
+          if (isAskingAboutService) {
+            message = aiResponse + "\n\n🚀 Ready to try it? Type `link` to connect your Flash account and start using Lightning payments!";
+          } else {
+            message = aiResponse + "\n\n💡 Tip: I can do much more once you connect your Flash account! Type `link` to get started.";
+          }
         } else {
+          // For linked users, provide the AI response directly
           message = aiResponse;
         }
       } catch (error) {
-        // Fallback to static responses if AI fails
-        this.logger.error(`AI processing failed for greeting: ${error.message}`);
-        if (session?.isVerified) {
-          message = "👋 Hey there! How can I help you today?\n\nType `help` to see what I can do, or just tell me what you need!";
+        // Fallback to helpful static responses if AI fails
+        this.logger.error(`AI processing failed for message: ${error.message}`);
+        
+        // Provide context-aware fallback
+        const lowerText = rawText.toLowerCase();
+        if (lowerText.includes('flash') || lowerText.includes('what') || lowerText.includes('how')) {
+          message = "⚡ Flash is a Lightning Network wallet that makes Bitcoin payments instant and nearly free!\n\n" +
+                   "With Pulse (that's me!), you can:\n" +
+                   "• Send and receive Bitcoin instantly\n" +
+                   "• Check your balance\n" +
+                   "• View transaction history\n" +
+                   "• Manage contacts\n" +
+                   "• Play games to earn sats\n\n" +
+                   (session?.isVerified ? "Type `help` to see all available commands!" : 
+                    "Type `link` to connect your Flash account and get started!");
+        } else if (session?.isVerified) {
+          message = "I'm not sure what you're looking for. Type `help` to see available commands, or just tell me what you'd like to do!";
         } else {
-          message = "👋 Hello! Welcome to Flash!\n\n⚡ I'm your Lightning payment assistant. To get started:\n\n🔗 Type `link` to connect your Flash account\n💡 Type `help` to see what I can do\n\nOnce connected, you can send money, check balances, and much more!";
+          message = "I'd love to help! I can answer questions about Flash/Lightning payments, or you can type `link` to connect your account and start using all my features.";
         }
       }
     } else {
-      // Not a greeting - provide helpful guidance
+      // No text provided - shouldn't happen but handle gracefully
       if (session?.isVerified) {
-        message = "I'm not sure what you're looking for. Type `help` to see available commands, or just tell me what you'd like to do!";
+        message = "How can I help you today? Type `help` to see available commands.";
       } else {
-        message = "I don't recognize that command. Type `help` to see available commands, or `link` to connect your Flash account first.";
+        message = "Welcome to Pulse! Type `help` to learn more or `link` to connect your Flash account.";
       }
     }
 
