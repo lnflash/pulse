@@ -83,7 +83,7 @@ export class CommandParserService {
     {
       type: CommandType.ADMIN,
       pattern:
-        /^admin(?:\s+(help|disconnect|reconnect|status|clear-session|settings|lockdown|find|group|add|remove|voice|analytics))?\s*(?:support|admin)?\s*(.*)$/i,
+        /^admin(?:\s+(help|disconnect|reconnect|status|clear-session|settings|lockdown|find|group|add|remove|audio|analytics))?\s*(?:support|admin)?\s*(.*)$/i,
     },
     { type: CommandType.PENDING, pattern: /^pending(?:\s+(sent|received|claim))?(?:\s+(.+))?$/i },
     { type: CommandType.VOICE, pattern: /^voice(?:\s+(.+))?$/i },
@@ -893,11 +893,7 @@ export class CommandParserService {
     }
 
     // Other voice settings variations
-    // But skip if this is an admin command (like "admin voice off")
-    const isAdminVoiceCommand = lowerText.startsWith('admin voice');
-    
     if (
-      !isAdminVoiceCommand && (
       lowerText.includes('voice settings') ||
       lowerText.includes('voice mode') ||
       lowerText.includes('voice options') ||
@@ -933,7 +929,7 @@ export class CommandParserService {
       lowerText === 'audio' ||
       lowerText === 'speech' ||
       lowerText === 'tts'
-    )) {
+    ) {
       // Extract specific voice action if present
       const args: any = {};
 
@@ -1527,17 +1523,17 @@ export class CommandParserService {
             args.mode = match[2].trim().toLowerCase();
           } else if (args.action === 'group') {
             args.mode = match[2].trim().toLowerCase();
-          } else if (args.action === 'voice') {
-            // Parse voice subcommands more carefully
-            const voiceParams = match[2].trim();
-            const voiceParts = voiceParams.split(/\s+/);
+          } else if (args.action === 'audio') {
+            // Parse audio subcommands more carefully
+            const audioParams = match[2].trim();
+            const audioParts = audioParams.split(/\s+/);
             
-            if (voiceParts[0]) {
-              args.mode = voiceParts[0].toLowerCase();
+            if (audioParts[0]) {
+              args.mode = audioParts[0].toLowerCase();
               
               // For 'default' command, capture the voice name
-              if (args.mode === 'default' && voiceParts[1]) {
-                args.extra = voiceParts.slice(1).join(' ');
+              if (args.mode === 'default' && audioParts[1]) {
+                args.extra = audioParts.slice(1).join(' ');
               }
             }
           } else if (args.action === 'analytics') {

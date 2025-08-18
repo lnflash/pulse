@@ -5389,7 +5389,7 @@ ${voiceList}`;
           );
         }
 
-        case 'voice': {
+        case 'audio': {
           const subCommand = command.args.mode;
 
           // Handle default voice settings
@@ -5400,9 +5400,9 @@ ${voiceList}`;
               // Show current default voice
               const currentDefault = await this.voiceManagementService.getDefaultVoice();
               if (currentDefault) {
-                return `🎙️ *Current Default Voice*: ${currentDefault}\n\nTo change: \`admin voice default [name]\`\nTo clear: \`admin voice default clear\``;
+                return `🎙️ *Current Default Voice*: ${currentDefault}\n\nTo change: \`admin audio default [name]\`\nTo clear: \`admin audio default clear\``;
               } else {
-                return `🎙️ No default voice set.\n\nTo set: \`admin voice default [name]\`\nAvailable voices: \`voice list\``;
+                return `🎙️ No default voice set.\n\nTo set: \`admin audio default [name]\`\nAvailable voices: \`voice list\``;
               }
             }
 
@@ -5426,32 +5426,32 @@ ${voiceList}`;
             return `✅ Default voice set to: ${voiceName}\n\nAll users without a voice preference will now use this voice.`;
           }
 
-          // Original voice mode settings
-          const voiceMode = command.args.mode as VoiceMode;
-          if (!voiceMode || !['always', 'on', 'off'].includes(voiceMode)) {
+          // Original audio mode settings
+          const audioMode = command.args.mode as VoiceMode;
+          if (!audioMode || !['always', 'on', 'off'].includes(audioMode)) {
             const currentMode = await this.adminSettingsService.getVoiceMode();
             const currentDefault = await this.voiceManagementService.getDefaultVoice();
             return (
-              `🔊 *Voice Settings*\n\n` +
+              `🔊 *Audio Settings*\n\n` +
               `**Mode**: ${currentMode.toUpperCase()}\n` +
               (currentDefault ? `**Default Voice**: ${currentDefault}\n\n` : '\n') +
-              `*Voice Modes:*\n` +
+              `*Audio Modes:*\n` +
               `• \`always\` - All responses include voice notes\n` +
               `• \`on\` - AI responds with voice to keywords\n` +
               `• \`off\` - Voice notes disabled\n\n` +
               `*Commands:*\n` +
-              `• \`admin voice always/on/off\` - Set mode\n` +
-              `• \`admin voice default [name]\` - Set default voice\n` +
-              `• \`admin voice default clear\` - Clear default`
+              `• \`admin audio always/on/off\` - Set mode\n` +
+              `• \`admin audio default [name]\` - Set default voice\n` +
+              `• \`admin audio default clear\` - Clear default`
             );
           }
-          await this.adminSettingsService.setVoiceMode(voiceMode, phoneNumber);
+          await this.adminSettingsService.setVoiceMode(audioMode, phoneNumber);
           return (
-            `🔊 Voice mode set to: ${voiceMode.toUpperCase()}\n\n` +
+            `🔊 Audio mode set to: ${audioMode.toUpperCase()}\n\n` +
             `${
-              voiceMode === 'always'
+              audioMode === 'always'
                 ? '• All responses will include voice notes\n• Both commands and AI will speak'
-                : voiceMode === 'on'
+                : audioMode === 'on'
                   ? '• AI responds with voice to keywords\n• Say "voice", "speak", "audio" to activate'
                   : '• Voice notes are disabled\n• Text-only responses'
             }`
@@ -5566,7 +5566,7 @@ ${voiceList}`;
       `🔒 *System Control:*\n` +
       `• \`admin lockdown on/off\` - Enable/disable lockdown\n` +
       `• \`admin group on/off\` - Enable/disable groups\n` +
-      `• \`admin voice always/on/off\` - Control voice responses\n\n` +
+      `• \`admin audio always/on/off\` - Control voice responses\n\n` +
       `👥 *User Management:*\n` +
       `• \`admin add admin <phone>\` - Add admin\n` +
       `• \`admin add support <phone>\` - Add support agent\n` +
