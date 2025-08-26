@@ -220,6 +220,15 @@ export class WhatsappService {
       // Log performance improvement
       this.logger.debug(`Initial checks completed in ${Date.now() - startTime}ms`);
 
+      // Refresh session activity to extend TTL if user is linked
+      if (session && session.sessionId) {
+        await this.sessionService.updateSession(session.sessionId, {
+          lastActivity: new Date(),
+        }).catch(err => {
+          this.logger.warn(`Failed to refresh session activity: ${err.message}`);
+        });
+      }
+
       // Handle pending question if exists
       if (pendingQuestion && messageData.text.toLowerCase() !== 'skip') {
         // Process the answer to the pending question

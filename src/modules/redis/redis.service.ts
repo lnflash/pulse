@@ -174,8 +174,15 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(`Failed to get encrypted value for key ${key}:`);
       this.logger.error(error);
 
-      // Delete the corrupted key to prevent repeated errors
-      await this.redisClient.del(key);
+      // Don't delete sessions on decryption failure - they might be recoverable
+      // Only delete non-session keys to prevent repeated errors
+      if (!key.startsWith('session:')) {
+        await this.redisClient.del(key);
+      } else {
+        this.logger.warn(
+          `Session ${key} cannot be decrypted. Keeping it for potential recovery. User may need to re-link.`,
+        );
+      }
 
       return null;
     }

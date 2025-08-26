@@ -141,14 +141,22 @@ export class SessionService {
         return null;
       }
 
+      const now = new Date();
       const updatedSession = {
         ...session,
         ...updates,
-        lastActivity: new Date(),
+        lastActivity: now,
       };
+
+      // Extend session expiry on activity
+      updatedSession.expiresAt = new Date(now.getTime() + this.sessionExpiry * 1000);
 
       const sessionKey = `session:${sessionId}`;
       await this.redisService.setEncrypted(sessionKey, updatedSession, this.sessionExpiry);
+
+      // Also update the whatsappId mapping TTL
+      const whatsappKey = this.redisService.hashKey('whatsapp', session.whatsappId);
+      await this.redisService.expire(whatsappKey, this.sessionExpiry);
 
       return updatedSession;
     } catch (error) {
