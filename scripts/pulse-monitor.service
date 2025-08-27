@@ -1,0 +1,16 @@
+[Unit]
+Description=Pulse WhatsApp Health Monitor
+After=network.target pm2-root.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/pulse
+ExecStart=/opt/pulse/scripts/monitor-health.sh
+Restart=always
+RestartSec=10
+StandardOutput=append:/var/log/pulse-monitor.log
+StandardError=append:/var/log/pulse-monitor.log
+
+[Install]
+WantedBy=multi-user.target

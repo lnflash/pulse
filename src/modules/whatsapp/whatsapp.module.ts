@@ -15,6 +15,7 @@ import { WhatsAppWebService } from './services/whatsapp-web.service';
 import { WhatsAppMessagingService } from './services/whatsapp-messaging.service';
 import { WhatsAppInstanceManager } from './services/whatsapp-instance-manager.service';
 import { WhatsAppMessageRouter } from './services/whatsapp-message-router.service';
+import { WhatsAppHealthService } from './services/whatsapp-health.service';
 import { MessageBatcherService } from './services/message-batcher.service';
 import { QrCodeService } from './services/qr-code.service';
 import { InvoiceTrackerService } from './services/invoice-tracker.service';
@@ -85,6 +86,7 @@ import { DialectAiModule } from '../dialect-ai/dialect-ai.module';
     WhatsAppWebService, // WhatsApp Web.js Service
     WhatsAppInstanceManager, // Multi-instance manager
     WhatsAppMessageRouter, // Message routing service
+    WhatsAppHealthService, // Health monitoring and self-healing
     WhatsAppMessagingService,
     MessageBatcherService, // Message batching service
     {

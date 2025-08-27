@@ -8,11 +8,12 @@ import { SessionDirectoryUtil } from '../../../common/utils/session-directory.ut
 export interface WhatsAppInstance {
   phoneNumber: string;
   client: Client;
-  status: 'initializing' | 'qr_pending' | 'authenticated' | 'ready' | 'disconnected' | 'failed';
+  status: 'initializing' | 'qr_code' | 'qr_pending' | 'authenticated' | 'ready' | 'disconnected' | 'failed';
   sessionPath: string;
   createdAt: Date;
   lastActivity?: Date;
   qrCode?: string;
+  port?: number;
 }
 
 export interface InstanceConfig {
@@ -95,6 +96,7 @@ export class WhatsAppInstanceManager implements OnModuleDestroy {
       status: 'initializing',
       sessionPath,
       createdAt: new Date(),
+      port: chromiumPort,
     };
 
     // Store instance
@@ -130,6 +132,27 @@ export class WhatsAppInstanceManager implements OnModuleDestroy {
    */
   getInstance(phoneNumber: string): WhatsAppInstance | undefined {
     return this.instances.get(phoneNumber);
+  }
+
+  /**
+   * Get all instances
+   */
+  getAllInstances(): Map<string, WhatsAppInstance> {
+    return this.instances;
+  }
+
+  /**
+   * Remove an instance
+   */
+  removeInstance(phoneNumber: string): void {
+    const instance = this.instances.get(phoneNumber);
+    if (instance) {
+      this.logger.log(`Removing instance ${phoneNumber}`);
+      if (instance.port) {
+        this.usedPorts.delete(instance.port);
+      }
+      this.instances.delete(phoneNumber);
+    }
   }
 
   /**

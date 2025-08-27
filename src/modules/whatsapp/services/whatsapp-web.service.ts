@@ -249,6 +249,73 @@ export class WhatsAppWebService
   }
 
   /**
+   * Get all instances status for health monitoring
+   */
+  async getAllInstanceStatus(): Promise<Record<string, any>> {
+    const instances = this.instanceManager.getAllInstances();
+    const statuses: Record<string, any> = {};
+
+    for (const [phoneNumber, instance] of instances) {
+      statuses[phoneNumber] = {
+        phoneNumber,
+        isReady: instance.status === 'ready',
+        isAuthenticated: instance.status === 'ready' || instance.status === 'authenticated',
+        needsAuth: instance.status === 'qr_code',
+        state: instance.status,
+        lastActivity: instance.lastActivity || null,
+      };
+    }
+
+    return statuses;
+  }
+
+  /**
+   * Get a specific client by phone number
+   */
+  async getClientByPhone(phoneNumber: string): Promise<any> {
+    const instance = this.instanceManager.getInstance(phoneNumber);
+    return instance?.client || null;
+  }
+
+  /**
+   * Restart a specific instance
+   */
+  async restartInstance(phoneNumber: string): Promise<boolean> {
+    try {
+      this.logger.log(`Restarting WhatsApp instance ${phoneNumber}...`);
+      
+      // First, destroy the existing instance
+      const instance = this.instanceManager.getInstance(phoneNumber);
+      if (instance?.client) {
+        try {
+          await instance.client.destroy();
+        } catch (error) {
+          this.logger.warn(`Error destroying client for ${phoneNumber}: ${error.message}`);
+        }
+      }
+
+      // Remove from instance manager
+      this.instanceManager.removeInstance(phoneNumber);
+
+      // Wait a bit for cleanup
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Reinitialize the instance
+      const config: InstanceConfiguration = {
+        phoneNumber,
+        enabled: true,
+      };
+
+      await this.initializeInstance(config);
+      
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to restart instance ${phoneNumber}: ${error.message}`, error.stack);
+      return false;
+    }
+  }
+
+  /**
    * Send a message with buttons (fallback to text-based menu)
    */
   async sendInteractiveMessage(
