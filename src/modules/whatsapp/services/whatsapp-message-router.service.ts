@@ -41,9 +41,10 @@ export class WhatsAppMessageRouter {
       };
 
       // Handle vCard messages
-      if (message.type === 'vcard' && message.hasMedia) {
+      // Check if the message body contains vCard data (not media)
+      if (message.body && message.body.includes('BEGIN:VCARD')) {
         try {
-          const vCardData = (message as any).body || (message as any)._data?.body;
+          const vCardData = message.body;
           if (vCardData) {
             // Parse vCard data
             const vCardInfo = this.parseVCard(vCardData);
