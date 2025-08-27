@@ -24,12 +24,6 @@ export class WhatsAppMessageRouter {
 
     try {
       this.logger.debug(`Routing message from instance ${phoneNumber}: ${message.body}`);
-      
-      // Update instance activity
-      const instance = this.instanceManager.getInstance(phoneNumber);
-      if (instance) {
-        instance.lastActivity = new Date();
-      }
 
       // Extract message data
       const messageData: any = {
@@ -103,8 +97,6 @@ export class WhatsAppMessageRouter {
     }
 
     try {
-      // Update last activity
-      instance.lastActivity = new Date();
       const client = instance.client;
       
       // Ensure recipient is properly formatted

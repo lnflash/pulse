@@ -255,35 +255,4 @@ export class WhatsAppWebController {
       ready: this.whatsAppWebService.isClientReady(),
     };
   }
-
-  /**
-   * Force restart all WhatsApp instances (emergency recovery)
-   */
-  @Post('restart')
-  @HttpCode(HttpStatus.OK)
-  async restartAll() {
-    try {
-      const instances = await this.whatsAppWebService.getAllInstanceStatus();
-      const results: any[] = [];
-
-      for (const phoneNumber of Object.keys(instances)) {
-        const success = await this.whatsAppWebService.restartInstance(phoneNumber);
-        results.push({ phoneNumber, success });
-      }
-
-      return {
-        status: 'success',
-        message: 'Restart initiated for all instances',
-        results,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      this.logger.error('Error restarting instances:', error);
-      return {
-        status: 'error',
-        message: error.message || 'Failed to restart instances',
-        timestamp: new Date().toISOString(),
-      };
-    }
-  }
 }
