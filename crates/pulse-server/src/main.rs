@@ -11,6 +11,7 @@ use pulse_application::commands::CommandRouter;
 use pulse_application::services::AuthService;
 use pulse_infrastructure::{
     create_redis_pool, AppConfig, FlashApiAdapter, FlashApiClient, RedisSessionRepository,
+    RedisInvoiceRepository,
 };
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -87,7 +88,11 @@ async fn main() -> Result<()> {
 
         // Create session repository
         let session_repo: Arc<dyn pulse_application::ports::SessionRepository> =
-            Arc::new(RedisSessionRepository::new(pool));
+            Arc::new(RedisSessionRepository::new(pool.clone()));
+
+        // Create invoice repository
+        let invoice_repo: Arc<dyn pulse_application::ports::InvoiceRepository> =
+            Arc::new(RedisInvoiceRepository::new(pool));
 
         // Create Flash API client
         let flash_client = FlashApiClient::new(&config.flash_api)?;
@@ -124,10 +129,11 @@ async fn main() -> Result<()> {
             let discord_config = config.discord.clone();
             let discord_router = router.clone();
             let discord_auth_service = auth_service.clone();
+            let discord_invoice_repo = invoice_repo.clone();
 
             tokio::spawn(async move {
                 if let Err(e) =
-                    discord::DiscordBot::create_and_start(&discord_config, discord_router, discord_auth_service).await
+                    discord::DiscordBot::create_and_start(&discord_config, discord_router, discord_auth_service, discord_invoice_repo).await
                 {
                     tracing::error!(error = %e, "Discord bot error");
                 }

@@ -18,6 +18,7 @@ use super::utils;
 pub struct Data {
     pub router: Arc<CommandRouter>,
     pub auth_service: Arc<AuthService>,
+    pub invoice_repo: Arc<dyn pulse_application::ports::InvoiceRepository>,
 }
 
 // Manual Debug implementation since these contain trait objects
@@ -26,6 +27,7 @@ impl std::fmt::Debug for Data {
         f.debug_struct("Data")
             .field("router", &"CommandRouter { ... }")
             .field("auth_service", &"AuthService { ... }")
+            .field("invoice_repo", &"InvoiceRepository { ... }")
             .finish()
     }
 }
@@ -564,14 +566,36 @@ pub async fn receive(
                             }
                         };
 
+                        // Create Invoice domain object
+                        let invoice = pulse_domain::models::Invoice::new(
+                            Platform::Discord,
+                            ctx.author().id.to_string(),
+                            invoice_data.payment_request.clone(),
+                            invoice_data.payment_hash,
+                            amount_sats,
+                            memo.clone(),
+                        );
+
+                        let invoice_id = invoice.id;
+
+                        // Store invoice in repository
+                        if let Err(e) = ctx.data().invoice_repo.save(&invoice).await {
+                            error!(error = %e, "Failed to save invoice to repository");
+                            // Continue anyway - the user can still pay manually
+                        }
+
                         // Create QR code attachment
                         let attachment = serenity::CreateAttachment::bytes(qr_bytes, "invoice_qr.png");
+
+                        // Create Pay Now button
+                        let pay_button = utils::create_pay_invoice_button(&invoice_id.to_string());
 
                         // Send invoice with QR code
                         ctx.send(
                             poise::CreateReply::default()
                                 .embed(embed)
                                 .attachment(attachment)
+                                .components(vec![pay_button])
                                 .ephemeral(true),
                         )
                         .await?;
@@ -1088,13 +1112,35 @@ pub async fn request(
                             }
                         };
 
+                        // Create Invoice domain object
+                        let invoice = pulse_domain::models::Invoice::new(
+                            Platform::Discord,
+                            ctx.author().id.to_string(),
+                            request_data.payment_request.clone(),
+                            request_data.payment_hash,
+                            amount_sats,
+                            memo.clone(),
+                        );
+
+                        let invoice_id = invoice.id;
+
+                        // Store invoice in repository
+                        if let Err(e) = ctx.data().invoice_repo.save(&invoice).await {
+                            error!(error = %e, "Failed to save invoice to repository");
+                            // Continue anyway - the user can still pay manually
+                        }
+
                         // Create attachment
                         let attachment = serenity::CreateAttachment::bytes(qr_bytes, "payment_request_qr.png");
+
+                        // Create Pay Now button
+                        let pay_button = utils::create_pay_invoice_button(&invoice_id.to_string());
 
                         ctx.send(
                             poise::CreateReply::default()
                                 .embed(embed)
                                 .attachment(attachment)
+                                .components(vec![pay_button])
                                 .ephemeral(true),
                         )
                         .await?;

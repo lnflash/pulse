@@ -185,6 +185,16 @@ pub fn create_pagination_buttons(
     ])
 }
 
+/// Create a "Pay Now" button for an invoice
+pub fn create_pay_invoice_button(invoice_id: &str) -> serenity::CreateActionRow {
+    serenity::CreateActionRow::Buttons(vec![
+        serenity::CreateButton::new(format!("pay_invoice:{}", invoice_id))
+            .label("Pay Now")
+            .style(serenity::ButtonStyle::Primary)
+            .emoji(serenity::ReactionType::Unicode(emojis::LIGHTNING.to_string())),
+    ])
+}
+
 /// Generate QR code as PNG bytes
 pub fn generate_qr_code_png(data: &str) -> Result<Vec<u8>, String> {
     // Generate QR code

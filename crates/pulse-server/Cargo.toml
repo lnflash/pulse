@@ -46,6 +46,9 @@ qrcode = "0.13"
 image = "0.24"
 base64 = "0.21"
 
+# UUID
+uuid.workspace = true
+
 [dev-dependencies]
 # Testing
 tokio = { workspace = true, features = ["test-util"] }

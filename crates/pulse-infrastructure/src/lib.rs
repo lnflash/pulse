@@ -13,5 +13,5 @@ pub mod errors;
 // Re-export commonly used types
 pub use errors::InfrastructureError;
 pub use config::AppConfig;
-pub use redis::{create_redis_pool, Cache, RedisCache, RedisSessionRepository};
+pub use redis::{create_redis_pool, Cache, RedisCache, RedisSessionRepository, RedisInvoiceRepository};
 pub use flash_api::{FlashApiClient, FlashApiAdapter};
