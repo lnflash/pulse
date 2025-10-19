@@ -443,7 +443,174 @@ pub async fn send(
     Ok(())
 }
 
+/// Receive command - create Lightning invoice with QR code
+#[poise::command(slash_command)]
+pub async fn receive(
+    ctx: Context<'_>,
+    #[description = "Amount to receive in sats (optional for any-amount invoice)"] amount: Option<i64>,
+    #[description = "Optional memo for the invoice"] memo: Option<String>,
+) -> Result<(), Error> {
+    debug!(user = %ctx.author().name, amount = ?amount, "Discord /receive command");
+
+    // Load user session
+    let command_ctx = to_command_context(&ctx).await;
+
+    // Check if user is authenticated
+    if !command_ctx.is_verified() {
+        ctx.send(
+            poise::CreateReply::default()
+                .content("You need to link your account first. Use `/link <phone-number>` to get started.")
+                .ephemeral(true),
+        )
+        .await?;
+        return Ok(());
+    }
+
+    // Build command text for parser
+    let command_text = if let Some(amt) = amount {
+        format!("receive {} sats", amt)
+    } else {
+        "receive".to_string()
+    };
+
+    match CommandParser::parse(&command_text) {
+        Ok(mut parsed_command) => {
+            // Add memo to args if provided
+            if let Some(m) = memo.as_ref() {
+                parsed_command.args.insert("memo".to_string(), m.clone());
+            }
+
+            match ctx.data().router.route(&parsed_command, &command_ctx).await {
+                Ok(response) => {
+                    // Parse invoice JSON from response message
+                    if response.message.starts_with("INVOICE:") {
+                        let parts: Vec<&str> = response.message.splitn(2, "\n\n").collect();
+                        if parts.len() < 2 {
+                            ctx.send(
+                                poise::CreateReply::default()
+                                    .content("Failed to parse invoice response")
+                                    .ephemeral(true),
+                            )
+                            .await?;
+                            return Ok(());
+                        }
+
+                        let json_str = parts[0].strip_prefix("INVOICE:").unwrap_or("");
+
+                        #[derive(serde::Deserialize)]
+                        struct InvoiceData {
+                            payment_request: String,
+                            payment_hash: String,
+                            amount_sats: Option<i64>,
+                        }
+
+                        let invoice_data: InvoiceData = match serde_json::from_str(json_str) {
+                            Ok(data) => data,
+                            Err(e) => {
+                                error!(error = %e, "Failed to parse invoice JSON");
+                                ctx.send(
+                                    poise::CreateReply::default()
+                                        .embed(utils::build_error_embed(
+                                            "Parse Error",
+                                            &format!("Failed to parse invoice data: {}", e),
+                                        ))
+                                        .ephemeral(true),
+                                )
+                                .await?;
+                                return Ok(());
+                            }
+                        };
+
+                        let payment_request = &invoice_data.payment_request;
+                        let amount_sats = invoice_data.amount_sats;
+
+                        // Generate QR code
+                        let qr_bytes = match utils::generate_qr_code_png(payment_request) {
+                            Ok(bytes) => bytes,
+                            Err(e) => {
+                                error!(error = %e, "Failed to generate QR code");
+                                ctx.send(
+                                    poise::CreateReply::default()
+                                        .embed(utils::build_error_embed(
+                                            "QR Code Generation Failed",
+                                            &format!("Failed to generate QR code: {}", e),
+                                        ))
+                                        .ephemeral(true),
+                                )
+                                .await?;
+                                return Ok(());
+                            }
+                        };
+
+                        // Build invoice embed
+                        let embed = match utils::build_invoice_embed(
+                            amount_sats.unwrap_or(0),
+                            payment_request,
+                            memo.as_deref(),
+                        ) {
+                            Ok(embed) => embed,
+                            Err(e) => {
+                                error!(error = %e, "Failed to build invoice embed");
+                                ctx.send(
+                                    poise::CreateReply::default()
+                                        .embed(utils::build_error_embed(
+                                            "Embed Creation Failed",
+                                            &format!("Failed to create invoice embed: {}", e),
+                                        ))
+                                        .ephemeral(true),
+                                )
+                                .await?;
+                                return Ok(());
+                            }
+                        };
+
+                        // Create QR code attachment
+                        let attachment = serenity::CreateAttachment::bytes(qr_bytes, "invoice_qr.png");
+
+                        // Send invoice with QR code
+                        ctx.send(
+                            poise::CreateReply::default()
+                                .embed(embed)
+                                .attachment(attachment)
+                                .ephemeral(true),
+                        )
+                        .await?;
+                    } else {
+                        // Fallback to text response if no metadata
+                        ctx.send(
+                            poise::CreateReply::default()
+                                .content(response.message)
+                                .ephemeral(true),
+                        )
+                        .await?;
+                    }
+                }
+                Err(e) => {
+                    error!(error = %e, "Failed to execute receive command");
+                    ctx.send(
+                        poise::CreateReply::default()
+                            .embed(utils::build_error_embed("Invoice Creation Failed", &format!("{}", e)))
+                            .ephemeral(true),
+                    )
+                    .await?;
+                }
+            }
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to parse receive command");
+            ctx.send(
+                poise::CreateReply::default()
+                    .embed(utils::build_error_embed("Error", &format!("Failed to parse command: {}", e)))
+                    .ephemeral(true),
+            )
+            .await?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Get all commands to register with poise framework
 pub fn commands() -> Vec<poise::Command<Data, Error>> {
-    vec![help(), balance(), price(), link(), verify(), unlink(), send()]
+    vec![help(), balance(), price(), link(), verify(), unlink(), send(), receive()]
 }
