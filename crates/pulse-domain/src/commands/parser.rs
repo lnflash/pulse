@@ -49,6 +49,10 @@ static RECEIVE_NO_AMOUNT_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)^(?:receive|invoice|request)$").unwrap()
 });
 
+static PAY_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)^pay\s+(lnbc\w+|lntb\w+)$").unwrap()
+});
+
 static USERNAME_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)^(?:username|set username|my username)\s*(.*)$").unwrap()
 });
@@ -138,6 +142,19 @@ impl CommandParser {
         if RECEIVE_NO_AMOUNT_PATTERN.is_match(text) {
             // Variable amount invoice (no amount specified)
             return Ok(Self::create_command(CommandType::Receive, text));
+        }
+
+        if let Some(caps) = PAY_PATTERN.captures(text) {
+            let invoice = caps.get(1).unwrap().as_str();
+
+            let mut args = HashMap::new();
+            args.insert("invoice".to_string(), invoice.to_string());
+
+            return Ok(ParsedCommand {
+                command_type: CommandType::Pay,
+                args,
+                raw_text: text.to_string(),
+            });
         }
 
         if let Some(caps) = HISTORY_PATTERN.captures(text) {

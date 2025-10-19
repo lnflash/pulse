@@ -610,7 +610,201 @@ pub async fn receive(
     Ok(())
 }
 
+/// Pay Lightning invoice command - pay a Lightning invoice
+#[poise::command(slash_command)]
+pub async fn pay(
+    ctx: Context<'_>,
+    #[description = "Lightning invoice (starts with lnbc or lntb)"] invoice: String,
+) -> Result<(), Error> {
+    debug!(user = %ctx.author().name, invoice_prefix = &invoice[..15.min(invoice.len())], "Discord /pay command");
+
+    // Load user session
+    let command_ctx = to_command_context(&ctx).await;
+
+    // Check if user is authenticated
+    if !command_ctx.is_verified() {
+        ctx.send(
+            poise::CreateReply::default()
+                .content("You need to link your account first. Use `/link <phone-number>` to get started.")
+                .ephemeral(true),
+        )
+        .await?;
+        return Ok(());
+    }
+
+    // Basic validation - check invoice format
+    let invoice_lower = invoice.to_lowercase();
+    if !invoice_lower.starts_with("lnbc") && !invoice_lower.starts_with("lntb") {
+        ctx.send(
+            poise::CreateReply::default()
+                .embed(utils::build_error_embed(
+                    "Invalid Invoice",
+                    "The provided string doesn't appear to be a valid Lightning invoice.\n\n\
+                    Lightning invoices start with 'lnbc' (mainnet) or 'lntb' (testnet).\n\n\
+                    Please check the invoice and try again.",
+                ))
+                .ephemeral(true),
+        )
+        .await?;
+        return Ok(());
+    }
+
+    // Build invoice payment confirmation embed
+    let embed = serenity::CreateEmbed::default()
+        .title(format!("{} Confirm Lightning Payment", utils::emojis::LIGHTNING))
+        .description(format!(
+            "**Invoice:**\n```{}```\n\n\
+            You are about to pay this Lightning invoice.\n\n\
+            {} **Warning:** This action cannot be undone. Make sure you trust the invoice source.",
+            &invoice[..60.min(invoice.len())],
+            utils::emojis::INFO
+        ))
+        .color(utils::colors::WARNING)
+        .footer(serenity::CreateEmbedFooter::new("Click Confirm to proceed with payment"));
+
+    // Create confirm/cancel buttons
+    let buttons = utils::create_confirm_cancel_buttons("pay_invoice");
+
+    // Send ephemeral confirmation message
+    let reply = ctx
+        .send(
+            poise::CreateReply::default()
+                .embed(embed)
+                .components(vec![buttons])
+                .ephemeral(true),
+        )
+        .await?;
+
+    // Wait for button interaction with 30 second timeout
+    let interaction = reply
+        .message()
+        .await?
+        .await_component_interaction(ctx.serenity_context())
+        .timeout(Duration::from_secs(30))
+        .await;
+
+    match interaction {
+        Some(interaction) => {
+            let custom_id = &interaction.data.custom_id;
+
+            if custom_id == "pay_invoice_confirm" {
+                // User confirmed - execute payment
+                interaction
+                    .create_response(
+                        ctx.serenity_context(),
+                        serenity::CreateInteractionResponse::UpdateMessage(
+                            serenity::CreateInteractionResponseMessage::new()
+                                .embed(
+                                    serenity::CreateEmbed::default()
+                                        .title(format!("{} Processing Payment...", utils::emojis::PENDING))
+                                        .description("Please wait while we process your Lightning payment.")
+                                        .color(utils::colors::PENDING),
+                                )
+                                .components(vec![]), // Remove buttons
+                        ),
+                    )
+                    .await?;
+
+                // Execute payment via command router
+                let command_text = format!("pay {}", invoice);
+
+                match CommandParser::parse(&command_text) {
+                    Ok(parsed_command) => {
+                        match ctx.data().router.route(&parsed_command, &command_ctx).await {
+                            Ok(_response) => {
+                                // Update with success message
+                                interaction
+                                    .edit_response(
+                                        ctx.serenity_context(),
+                                        serenity::EditInteractionResponse::new().embed(
+                                            utils::build_success_embed(
+                                                "Payment Sent!",
+                                                &format!(
+                                                    "**Invoice:** {}...\n\n\
+                                                    {} Your Lightning payment has been processed successfully.",
+                                                    &invoice[..20.min(invoice.len())],
+                                                    utils::emojis::CHECK
+                                                ),
+                                            ),
+                                        ),
+                                    )
+                                    .await?;
+                            }
+                            Err(e) => {
+                                error!(error = %e, "Failed to pay invoice");
+                                interaction
+                                    .edit_response(
+                                        ctx.serenity_context(),
+                                        serenity::EditInteractionResponse::new().embed(
+                                            utils::build_error_embed(
+                                                "Payment Failed",
+                                                &format!(
+                                                    "Unable to pay invoice: {}\n\n\
+                                                    Please check:\n\
+                                                    • You have sufficient balance\n\
+                                                    • The invoice is valid and not expired\n\
+                                                    • Your connection is stable",
+                                                    e
+                                                ),
+                                            ),
+                                        ),
+                                    )
+                                    .await?;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!(error = %e, "Failed to parse pay command");
+                        interaction
+                            .edit_response(
+                                ctx.serenity_context(),
+                                serenity::EditInteractionResponse::new()
+                                    .embed(utils::build_error_embed("Error", &format!("Failed to parse command: {}", e))),
+                            )
+                            .await?;
+                    }
+                }
+            } else if custom_id == "pay_invoice_cancel" {
+                // User cancelled
+                interaction
+                    .create_response(
+                        ctx.serenity_context(),
+                        serenity::CreateInteractionResponse::UpdateMessage(
+                            serenity::CreateInteractionResponseMessage::new()
+                                .embed(
+                                    serenity::CreateEmbed::default()
+                                        .title("Payment Cancelled")
+                                        .description("The Lightning payment has been cancelled.")
+                                        .color(utils::colors::INFO),
+                                )
+                                .components(vec![]),
+                        ),
+                    )
+                    .await?;
+            }
+        }
+        None => {
+            // Timeout - update message
+            reply
+                .edit(
+                    ctx,
+                    poise::CreateReply::default()
+                        .embed(
+                            serenity::CreateEmbed::default()
+                                .title("Confirmation Expired")
+                                .description("The payment confirmation has expired. Please try again.")
+                                .color(utils::colors::WARNING),
+                        )
+                        .components(vec![]),
+                )
+                .await?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Get all commands to register with poise framework
 pub fn commands() -> Vec<poise::Command<Data, Error>> {
-    vec![help(), balance(), price(), link(), verify(), unlink(), send(), receive()]
+    vec![help(), balance(), price(), link(), verify(), unlink(), send(), receive(), pay()]
 }
