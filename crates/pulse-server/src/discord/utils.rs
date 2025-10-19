@@ -2,8 +2,7 @@
 
 use poise::serenity_prelude as serenity;
 use qrcode::QrCode;
-use image::{ImageBuffer, ImageEncoder, Luma};
-use base64::{Engine as _, engine::general_purpose};
+use image::{ImageEncoder, Luma};
 use std::io::Cursor;
 
 /// Colors for different message types (Discord color codes)
@@ -17,6 +16,7 @@ pub mod colors {
 }
 
 /// Emojis for consistent iconography
+#[allow(dead_code)]
 pub mod emojis {
     pub const CHECK: &str = "✅";
     pub const CROSS: &str = "❌";
@@ -67,6 +67,8 @@ pub fn build_payment_confirmation_embed(
 }
 
 /// Build a transaction receipt embed
+/// Used in Phase 3: Request History feature
+#[allow(dead_code)]
 pub fn build_transaction_receipt_embed(
     amount_sats: i64,
     recipient: &str,
@@ -122,6 +124,8 @@ pub fn build_invoice_embed(
 }
 
 /// Build a balance embed
+/// Used in balance command and future analytics features
+#[allow(dead_code)]
 pub fn build_balance_embed(
     balance_sats: i64,
     btc_price_usd: f64,
@@ -160,6 +164,8 @@ pub fn create_confirm_cancel_buttons(custom_id_prefix: &str) -> serenity::Create
 }
 
 /// Create pagination buttons
+/// Will be used in Phase 3: Request History pagination
+#[allow(dead_code)]
 pub fn create_pagination_buttons(
     custom_id_prefix: &str,
     has_prev: bool,
@@ -241,6 +247,8 @@ pub fn format_sats(sats: i64) -> String {
 }
 
 /// Format timestamp for Discord
+/// Will be used in Phase 3: Request History and Templates
+#[allow(dead_code)]
 pub fn format_timestamp(dt: &chrono::DateTime<chrono::Utc>) -> String {
     format!("<t:{}:R>", dt.timestamp())
 }

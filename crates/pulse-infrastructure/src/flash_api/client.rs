@@ -1,7 +1,7 @@
 //! Flash API GraphQL client implementation
 
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use tracing::{debug, warn};
 

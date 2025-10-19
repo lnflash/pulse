@@ -877,6 +877,7 @@ pub async fn history(
                         let json_str = parts[0].strip_prefix("TRANSACTIONS:").unwrap_or("");
 
                         #[derive(serde::Deserialize)]
+                        #[allow(dead_code)]
                         struct TransactionData {
                             id: String,
                             status: String,
@@ -932,7 +933,7 @@ pub async fn history(
                             };
 
                             let timestamp = chrono::DateTime::from_timestamp(tx.created_at, 0)
-                                .map(|dt| format!("<t:{}:R>", tx.created_at))
+                                .map(|_| format!("<t:{}:R>", tx.created_at))
                                 .unwrap_or_else(|| "Unknown".to_string());
 
                             let memo_text = tx.memo.as_deref().unwrap_or("_No memo_");
