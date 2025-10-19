@@ -1,0 +1,30 @@
+[package]
+name = "pulse-domain"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Error handling
+thiserror.workspace = true
+
+# Date and time
+chrono.workspace = true
+
+# UUID
+uuid.workspace = true
+
+# Regex for validation
+regex.workspace = true
+
+# Lazy static initialization
+once_cell.workspace = true
+
+[dev-dependencies]
+# Testing
+tokio = { workspace = true, features = ["test-util"] }

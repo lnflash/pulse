@@ -1,0 +1,53 @@
+[package]
+name = "pulse-infrastructure"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Application and domain layers
+pulse-domain = { path = "../pulse-domain" }
+pulse-application = { path = "../pulse-application" }
+
+# Async runtime
+tokio.workspace = true
+tokio-util.workspace = true
+async-trait.workspace = true
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# HTTP client
+reqwest.workspace = true
+
+# GraphQL
+graphql_client.workspace = true
+
+# Redis
+redis.workspace = true
+deadpool-redis.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Date and time
+chrono.workspace = true
+
+# UUID
+uuid.workspace = true
+
+# Configuration
+config.workspace = true
+dotenvy.workspace = true
+
+[dev-dependencies]
+# Testing
+mockall.workspace = true
+wiremock.workspace = true
+tokio = { workspace = true, features = ["test-util"] }

@@ -1,0 +1,39 @@
+[package]
+name = "pulse-application"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Domain layer
+pulse-domain = { path = "../pulse-domain" }
+
+# Async runtime
+tokio.workspace = true
+async-trait.workspace = true
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Date and time
+chrono.workspace = true
+
+# UUID
+uuid.workspace = true
+
+# Regex
+regex.workspace = true
+
+[dev-dependencies]
+# Testing
+mockall.workspace = true
+tokio = { workspace = true, features = ["test-util"] }

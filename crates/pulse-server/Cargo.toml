@@ -1,0 +1,46 @@
+[package]
+name = "pulse-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "pulse"
+path = "src/main.rs"
+
+[dependencies]
+# All application crates
+pulse-domain = { path = "../pulse-domain" }
+pulse-application = { path = "../pulse-application" }
+pulse-infrastructure = { path = "../pulse-infrastructure" }
+pulse-api = { path = "../pulse-api" }
+
+# Async runtime
+tokio.workspace = true
+
+# Configuration
+config.workspace = true
+dotenvy.workspace = true
+
+# Error handling
+anyhow.workspace = true
+
+# Logging
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Date and time
+chrono.workspace = true
+
+# Discord integration
+poise = "0.6"
+async-trait.workspace = true
+
+[dev-dependencies]
+# Testing
+tokio = { workspace = true, features = ["test-util"] }

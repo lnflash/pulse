@@ -1,0 +1,43 @@
+[package]
+name = "pulse-api"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+# Application and infrastructure layers
+pulse-domain = { path = "../pulse-domain" }
+pulse-application = { path = "../pulse-application" }
+pulse-infrastructure = { path = "../pulse-infrastructure" }
+
+# Async runtime
+tokio.workspace = true
+
+# Web framework
+axum.workspace = true
+tower.workspace = true
+tower-http.workspace = true
+hyper.workspace = true
+
+# Error handling
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Logging
+tracing.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Date and time
+chrono.workspace = true
+
+# UUID
+uuid.workspace = true
+
+[dev-dependencies]
+# Testing
+tokio = { workspace = true, features = ["test-util"] }
+wiremock.workspace = true
