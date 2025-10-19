@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use crate::errors::ApplicationError;
-use crate::dtos::{UserDto, RealtimePriceDto, InvoiceDto};
+use crate::dtos::{UserDto, RealtimePriceDto, InvoiceDto, TransactionDto};
 
 #[async_trait]
 pub trait FlashApiClient: Send + Sync {
@@ -40,4 +40,13 @@ pub trait FlashApiClient: Send + Sync {
         amount_sats: Option<i64>,
         memo: Option<String>,
     ) -> Result<InvoiceDto, ApplicationError>;
+
+    /// Get transaction history
+    /// Returns a list of transactions for the user's default account
+    async fn get_transactions(
+        &self,
+        auth_token: &str,
+        first: Option<i32>,
+        after: Option<&str>,
+    ) -> Result<Vec<TransactionDto>, ApplicationError>;
 }

@@ -4,13 +4,13 @@
 
 use async_trait::async_trait;
 use pulse_application::dtos::{
-    AccountDto, InvoiceDto, PriceAmountDto, RealtimePriceDto, UserDto, WalletDto,
+    AccountDto, InvoiceDto, PriceAmountDto, RealtimePriceDto, TransactionDto, UserDto, WalletDto,
 };
 use pulse_application::ports::FlashApiClient as FlashApiPort;
 use pulse_application::ApplicationError;
 
 use super::client::FlashApiClient;
-use super::types::{Account, PriceAmount, RealtimePrice, User, Wallet};
+use super::types::{Account, PriceAmount, RealtimePrice, Transaction, User, Wallet};
 
 /// Adapter that implements the application port using the infrastructure client
 pub struct FlashApiAdapter {
@@ -134,6 +134,19 @@ impl FlashApiPort for FlashApiAdapter {
             ApplicationError::External(format!("Flash API error: {}", e))
         })
     }
+
+    async fn get_transactions(
+        &self,
+        auth_token: &str,
+        first: Option<i32>,
+        after: Option<&str>,
+    ) -> Result<Vec<TransactionDto>, ApplicationError> {
+        let transactions = self.client.get_transactions(auth_token, first, after).await.map_err(|e| {
+            ApplicationError::External(format!("Flash API error: {}", e))
+        })?;
+
+        Ok(transactions.into_iter().map(convert_transaction_to_dto).collect())
+    }
 }
 
 // Conversion functions
@@ -176,5 +189,17 @@ fn convert_price_amount_to_dto(amount: PriceAmount) -> PriceAmountDto {
     PriceAmountDto {
         base: amount.base,
         offset: amount.offset,
+    }
+}
+
+fn convert_transaction_to_dto(transaction: Transaction) -> TransactionDto {
+    TransactionDto {
+        id: transaction.id,
+        status: transaction.status,
+        direction: transaction.direction,
+        memo: transaction.memo,
+        settlement_amount: transaction.settlement_amount,
+        settlement_currency: transaction.settlement_currency,
+        created_at: transaction.created_at,
     }
 }

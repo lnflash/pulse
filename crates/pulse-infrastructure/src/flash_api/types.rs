@@ -180,3 +180,22 @@ pub struct UserLoginPayload {
     #[serde(rename = "authToken")]
     pub auth_token: Option<String>,
 }
+
+/// Transaction list response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransactionListResponse {
+    pub me: Option<TransactionListUser>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransactionListUser {
+    pub id: String,
+    #[serde(rename = "defaultAccount")]
+    pub default_account: Option<TransactionListAccount>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransactionListAccount {
+    pub id: String,
+    pub transactions: TransactionConnection,
+}

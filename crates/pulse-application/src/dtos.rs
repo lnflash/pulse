@@ -52,3 +52,14 @@ pub struct InvoiceDto {
     pub payment_hash: String,
     pub amount_sats: Option<i64>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransactionDto {
+    pub id: String,
+    pub status: String,
+    pub direction: String,
+    pub memo: Option<String>,
+    pub settlement_amount: i64,
+    pub settlement_currency: String,
+    pub created_at: i64,
+}

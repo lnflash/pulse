@@ -439,6 +439,48 @@ impl FlashApiClient {
             }
         }
     }
+
+    /// Get transaction history for user's default account
+    pub async fn get_transactions(
+        &self,
+        auth_token: &str,
+        first: Option<i32>,
+        after: Option<&str>,
+    ) -> Result<Vec<super::types::Transaction>, InfrastructureError> {
+        use crate::flash_api::queries::TRANSACTION_LIST_QUERY;
+        use crate::flash_api::types::TransactionListResponse;
+
+        let variables = json!({
+            "first": first.unwrap_or(10),
+            "after": after
+        });
+
+        let response: GraphQLResponse<TransactionListResponse> =
+            self.execute(TRANSACTION_LIST_QUERY, Some(variables), Some(auth_token)).await?;
+
+        if let Some(errors) = &response.errors {
+            if !errors.is_empty() {
+                return Err(InfrastructureError::GraphQL(format!(
+                    "Failed to get transactions: {}",
+                    errors[0].message
+                )));
+            }
+        }
+
+        if let Some(data) = response.data {
+            if let Some(user) = data.me {
+                if let Some(account) = user.default_account {
+                    let transactions = account.transactions.edges
+                        .into_iter()
+                        .map(|edge| edge.node)
+                        .collect();
+                    return Ok(transactions);
+                }
+            }
+        }
+
+        Ok(vec![])
+    }
 }
 
 #[cfg(test)]
