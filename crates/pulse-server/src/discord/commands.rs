@@ -7,8 +7,12 @@ use pulse_application::commands::{CommandContext, CommandRouter};
 use pulse_application::services::AuthService;
 use pulse_domain::commands::CommandParser;
 use pulse_domain::models::Platform;
+use poise::serenity_prelude as serenity;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::{debug, error, warn};
+
+use super::utils;
 
 /// Application context passed to all poise commands
 pub struct Data {
@@ -251,41 +255,188 @@ pub async fn unlink(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
-/// Send command - send Bitcoin via Lightning
-#[poise::command(slash_command, prefix_command)]
+/// Send command - send Bitcoin via Lightning with payment confirmation
+#[poise::command(slash_command)]
 pub async fn send(
     ctx: Context<'_>,
-    #[description = "Amount to send"] amount: i64,
+    #[description = "Amount to send in sats"] amount: i64,
     #[description = "Recipient (Lightning address or invoice)"] recipient: String,
     #[description = "Optional memo"] memo: Option<String>,
 ) -> Result<(), Error> {
     debug!(user = %ctx.author().name, amount = %amount, "Discord /send command");
 
-    // Defer reply immediately to avoid 3-second timeout
-    ctx.defer().await?;
-
+    // Load user session
     let command_ctx = to_command_context(&ctx).await;
-    let command_text = if let Some(m) = memo {
-        format!("send {} sats to {} memo {}", amount, recipient, m)
-    } else {
-        format!("send {} sats to {}", amount, recipient)
-    };
 
-    match CommandParser::parse(&command_text) {
-        Ok(parsed_command) => {
-            match ctx.data().router.route(&parsed_command, &command_ctx).await {
-                Ok(response) => {
-                    ctx.say(response.message).await?;
+    // Check if user is authenticated
+    if !command_ctx.is_verified() {
+        ctx.send(
+            poise::CreateReply::default()
+                .content("You need to link your account first. Use `/link <phone-number>` to get started.")
+                .ephemeral(true),
+        )
+        .await?;
+        return Ok(());
+    }
+
+    // Validate amount
+    if amount <= 0 {
+        ctx.send(
+            poise::CreateReply::default()
+                .content("Amount must be greater than 0.")
+                .ephemeral(true),
+        )
+        .await?;
+        return Ok(());
+    }
+
+    // Build payment confirmation embed
+    let embed = utils::build_payment_confirmation_embed(
+        amount,
+        &recipient,
+        memo.as_deref(),
+        None, // TODO: Add fee estimation
+    );
+
+    // Create confirm/cancel buttons
+    let buttons = utils::create_confirm_cancel_buttons("send_payment");
+
+    // Send ephemeral confirmation message
+    let reply = ctx
+        .send(
+            poise::CreateReply::default()
+                .embed(embed)
+                .components(vec![buttons])
+                .ephemeral(true),
+        )
+        .await?;
+
+    // Wait for button interaction with 30 second timeout
+    let interaction = reply
+        .message()
+        .await?
+        .await_component_interaction(ctx.serenity_context())
+        .timeout(Duration::from_secs(30))
+        .await;
+
+    match interaction {
+        Some(interaction) => {
+            let custom_id = &interaction.data.custom_id;
+
+            if custom_id == "send_payment_confirm" {
+                // User confirmed - execute payment
+                interaction
+                    .create_response(
+                        ctx.serenity_context(),
+                        serenity::CreateInteractionResponse::UpdateMessage(
+                            serenity::CreateInteractionResponseMessage::new()
+                                .embed(
+                                    serenity::CreateEmbed::default()
+                                        .title(format!("{} Processing Payment...", utils::emojis::PENDING))
+                                        .description("Please wait while we process your payment.")
+                                        .color(utils::colors::PENDING),
+                                )
+                                .components(vec![]), // Remove buttons
+                        ),
+                    )
+                    .await?;
+
+                // Execute payment via command router
+                let command_text = if let Some(m) = memo {
+                    format!("send {} sats to {} memo {}", amount, recipient, m)
+                } else {
+                    format!("send {} sats to {}", amount, recipient)
+                };
+
+                match CommandParser::parse(&command_text) {
+                    Ok(parsed_command) => {
+                        match ctx.data().router.route(&parsed_command, &command_ctx).await {
+                            Ok(_response) => {
+                                // Update with success message
+                                interaction
+                                    .edit_response(
+                                        ctx.serenity_context(),
+                                        serenity::EditInteractionResponse::new().embed(
+                                            utils::build_success_embed(
+                                                "Payment Sent!",
+                                                &format!(
+                                                    "**Amount:** {} sats\n**To:** {}\n\nYour payment has been processed successfully.",
+                                                    utils::format_sats(amount),
+                                                    recipient
+                                                ),
+                                            ),
+                                        ),
+                                    )
+                                    .await?;
+                            }
+                            Err(e) => {
+                                error!(error = %e, "Failed to execute payment");
+                                interaction
+                                    .edit_response(
+                                        ctx.serenity_context(),
+                                        serenity::EditInteractionResponse::new().embed(
+                                            utils::build_error_embed(
+                                                "Payment Failed",
+                                                &format!(
+                                                    "Unable to send payment: {}\n\n\
+                                                    Please check:\n\
+                                                    • You have sufficient balance\n\
+                                                    • The recipient address is valid\n\
+                                                    • Your connection is stable",
+                                                    e
+                                                ),
+                                            ),
+                                        ),
+                                    )
+                                    .await?;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!(error = %e, "Failed to parse send command");
+                        interaction
+                            .edit_response(
+                                ctx.serenity_context(),
+                                serenity::EditInteractionResponse::new()
+                                    .embed(utils::build_error_embed("Error", &format!("Failed to parse command: {}", e))),
+                            )
+                            .await?;
+                    }
                 }
-                Err(e) => {
-                    error!(error = %e, "Failed to execute send command");
-                    ctx.say(format!("Error: {}", e)).await?;
-                }
+            } else if custom_id == "send_payment_cancel" {
+                // User cancelled
+                interaction
+                    .create_response(
+                        ctx.serenity_context(),
+                        serenity::CreateInteractionResponse::UpdateMessage(
+                            serenity::CreateInteractionResponseMessage::new()
+                                .embed(
+                                    serenity::CreateEmbed::default()
+                                        .title("Payment Cancelled")
+                                        .description("The payment has been cancelled.")
+                                        .color(utils::colors::INFO),
+                                )
+                                .components(vec![]),
+                        ),
+                    )
+                    .await?;
             }
         }
-        Err(e) => {
-            error!(error = %e, "Failed to parse send command");
-            ctx.say(format!("Error: {}", e)).await?;
+        None => {
+            // Timeout - update message
+            reply
+                .edit(
+                    ctx,
+                    poise::CreateReply::default()
+                        .embed(
+                            serenity::CreateEmbed::default()
+                                .title("Confirmation Expired")
+                                .description("The payment confirmation has expired. Please try again.")
+                                .color(utils::colors::WARNING),
+                        )
+                        .components(vec![]),
+                )
+                .await?;
         }
     }
 

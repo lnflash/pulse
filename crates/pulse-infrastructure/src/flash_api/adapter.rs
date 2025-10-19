@@ -4,7 +4,7 @@
 
 use async_trait::async_trait;
 use pulse_application::dtos::{
-    AccountDto, PriceAmountDto, RealtimePriceDto, UserDto, WalletDto,
+    AccountDto, InvoiceDto, PriceAmountDto, RealtimePriceDto, UserDto, WalletDto,
 };
 use pulse_application::ports::FlashApiClient as FlashApiPort;
 use pulse_application::ApplicationError;
@@ -120,6 +120,17 @@ impl FlashApiPort for FlashApiAdapter {
 
     async fn user_login(&self, phone: &str, code: &str) -> Result<String, ApplicationError> {
         self.client.user_login(phone, code).await.map_err(|e| {
+            ApplicationError::External(format!("Flash API error: {}", e))
+        })
+    }
+
+    async fn create_invoice(
+        &self,
+        auth_token: &str,
+        amount_sats: Option<i64>,
+        memo: Option<String>,
+    ) -> Result<InvoiceDto, ApplicationError> {
+        self.client.create_invoice(auth_token, amount_sats, memo).await.map_err(|e| {
             ApplicationError::External(format!("Flash API error: {}", e))
         })
     }

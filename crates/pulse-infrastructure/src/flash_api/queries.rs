@@ -134,3 +134,34 @@ pub const USER_LOGIN_MUTATION: &str = r#"
     }
   }
 "#;
+
+/// Mutation to create a Lightning invoice with a fixed amount
+pub const LN_INVOICE_CREATE_MUTATION: &str = r#"
+  mutation lnInvoiceCreate($input: LnInvoiceCreateInput!) {
+    lnInvoiceCreate(input: $input) {
+      errors {
+        message
+      }
+      invoice {
+        paymentRequest
+        paymentHash
+        satoshis
+      }
+    }
+  }
+"#;
+
+/// Mutation to create a Lightning invoice without an amount
+pub const LN_NO_AMOUNT_INVOICE_CREATE_MUTATION: &str = r#"
+  mutation lnNoAmountInvoiceCreate($input: LnNoAmountInvoiceCreateInput!) {
+    lnNoAmountInvoiceCreate(input: $input) {
+      errors {
+        message
+      }
+      invoice {
+        paymentRequest
+        paymentHash
+      }
+    }
+  }
+"#;

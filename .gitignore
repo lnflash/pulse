@@ -94,3 +94,10 @@ whatsapp-sessions-new/
 .pm2/
 pids/
 logs/
+
+# Rust/Cargo
+/target
+**/target
+**/*.rs.bk
+debug/
+Cargo.lock.bak

@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use crate::errors::ApplicationError;
-use crate::dtos::{UserDto, RealtimePriceDto};
+use crate::dtos::{UserDto, RealtimePriceDto, InvoiceDto};
 
 #[async_trait]
 pub trait FlashApiClient: Send + Sync {
@@ -31,4 +31,13 @@ pub trait FlashApiClient: Send + Sync {
     /// Login with phone number and OTP code
     /// Returns auth token on success
     async fn user_login(&self, phone: &str, code: &str) -> Result<String, ApplicationError>;
+
+    /// Create a Lightning invoice
+    /// Returns invoice details including payment request
+    async fn create_invoice(
+        &self,
+        auth_token: &str,
+        amount_sats: Option<i64>,
+        memo: Option<String>,
+    ) -> Result<InvoiceDto, ApplicationError>;
 }

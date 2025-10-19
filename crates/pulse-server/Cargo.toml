@@ -41,6 +41,11 @@ chrono.workspace = true
 poise = "0.6"
 async-trait.workspace = true
 
+# QR code and image generation
+qrcode = "0.13"
+image = "0.24"
+base64 = "0.21"
+
 [dev-dependencies]
 # Testing
 tokio = { workspace = true, features = ["test-util"] }

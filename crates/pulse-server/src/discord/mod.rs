@@ -6,5 +6,6 @@
 pub mod adapter;
 pub mod bot;
 pub mod commands;
+pub mod utils;
 
 pub use bot::DiscordBot;

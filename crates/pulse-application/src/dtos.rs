@@ -45,3 +45,10 @@ impl PriceAmountDto {
         self.base as f64 / 10_f64.powi(self.offset)
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InvoiceDto {
+    pub payment_request: String,
+    pub payment_hash: String,
+    pub amount_sats: Option<i64>,
+}

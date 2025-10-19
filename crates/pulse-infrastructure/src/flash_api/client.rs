@@ -1,11 +1,13 @@
 //! Flash API GraphQL client implementation
 
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::{debug, warn};
 
 use crate::config::FlashApiConfig;
 use crate::errors::InfrastructureError;
+use pulse_application::dtos;
 use super::queries::*;
 use super::mutations::*;
 use super::types::*;
@@ -298,6 +300,143 @@ impl FlashApiClient {
             })
         } else {
             Err(InfrastructureError::GraphQL("No response data from login".to_string()))
+        }
+    }
+
+    /// Create a Lightning invoice
+    pub async fn create_invoice(
+        &self,
+        auth_token: &str,
+        amount_sats: Option<i64>,
+        memo: Option<String>,
+    ) -> Result<dtos::InvoiceDto, InfrastructureError> {
+        use crate::flash_api::queries::{LN_INVOICE_CREATE_MUTATION, LN_NO_AMOUNT_INVOICE_CREATE_MUTATION};
+
+        // First, get the user's default wallet ID
+        let user_response: GraphQLResponse<MeResponse> =
+            self.execute(ME_WALLETS_QUERY, None, Some(auth_token)).await?;
+
+        let wallet_id = if let Some(data) = user_response.data {
+            let user = data.me.ok_or_else(|| {
+                InfrastructureError::GraphQL("No user data".to_string())
+            })?;
+            let account = user.default_account.ok_or_else(|| {
+                InfrastructureError::GraphQL("No default account".to_string())
+            })?;
+            account.default_wallet_id
+        } else {
+            return Err(InfrastructureError::GraphQL("No response data".to_string()));
+        };
+
+        // Create invoice based on whether amount is specified
+        if let Some(amount) = amount_sats {
+            // Create invoice with fixed amount
+            let variables = json!({
+                "input": {
+                    "walletId": wallet_id,
+                    "amount": amount,
+                    "memo": memo,
+                }
+            });
+
+            #[derive(Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct InvoiceCreateResponse {
+                ln_invoice_create: InvoicePayload,
+            }
+
+            #[derive(Deserialize)]
+            struct InvoicePayload {
+                errors: Vec<GraphQLError>,
+                invoice: Option<Invoice>,
+            }
+
+            #[derive(Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct Invoice {
+                payment_request: String,
+                payment_hash: String,
+                satoshis: Option<i64>,
+            }
+
+            let response: GraphQLResponse<InvoiceCreateResponse> =
+                self.execute(LN_INVOICE_CREATE_MUTATION, Some(variables), Some(auth_token)).await?;
+
+            if let Some(data) = response.data {
+                let payload = data.ln_invoice_create;
+
+                if !payload.errors.is_empty() {
+                    return Err(InfrastructureError::GraphQL(format!(
+                        "Invoice creation failed: {}",
+                        payload.errors[0].message
+                    )));
+                }
+
+                let invoice = payload.invoice.ok_or_else(|| {
+                    InfrastructureError::GraphQL("No invoice returned".to_string())
+                })?;
+
+                Ok(dtos::InvoiceDto {
+                    payment_request: invoice.payment_request,
+                    payment_hash: invoice.payment_hash,
+                    amount_sats: invoice.satoshis,
+                })
+            } else {
+                Err(InfrastructureError::GraphQL("No response data from invoice creation".to_string()))
+            }
+        } else {
+            // Create invoice without amount
+            let variables = json!({
+                "input": {
+                    "walletId": wallet_id,
+                    "memo": memo,
+                }
+            });
+
+            #[derive(Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct NoAmountInvoiceCreateResponse {
+                ln_no_amount_invoice_create: NoAmountInvoicePayload,
+            }
+
+            #[derive(Deserialize)]
+            struct NoAmountInvoicePayload {
+                errors: Vec<GraphQLError>,
+                invoice: Option<NoAmountInvoice>,
+            }
+
+            #[derive(Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct NoAmountInvoice {
+                payment_request: String,
+                payment_hash: String,
+            }
+
+            let response: GraphQLResponse<NoAmountInvoiceCreateResponse> =
+                self.execute(LN_NO_AMOUNT_INVOICE_CREATE_MUTATION, Some(variables), Some(auth_token)).await?;
+
+            if let Some(data) = response.data {
+                let payload = data.ln_no_amount_invoice_create;
+
+                if !payload.errors.is_empty() {
+                    return Err(InfrastructureError::GraphQL(format!(
+                        "Invoice creation failed: {}",
+                        payload.errors[0].message
+                    )));
+                }
+
+                let invoice = payload.invoice.ok_or_else(|| {
+                    InfrastructureError::GraphQL("No invoice returned".to_string())
+                })?;
+
+                Ok(dtos::InvoiceDto {
+                    payment_request: invoice.payment_request,
+                    payment_hash: invoice.payment_hash,
+                    amount_sats: None,
+                })
+            } else {
+                Err(InfrastructureError::GraphQL("No response data from invoice creation".to_string()))
+            }
         }
     }
 }
