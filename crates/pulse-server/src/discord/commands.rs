@@ -804,7 +804,170 @@ pub async fn pay(
     Ok(())
 }
 
+/// Transaction history command - display recent transactions
+#[poise::command(slash_command)]
+pub async fn history(
+    ctx: Context<'_>,
+    #[description = "Number of transactions to display (default: 10)"] limit: Option<i32>,
+) -> Result<(), Error> {
+    debug!(user = %ctx.author().name, limit = ?limit, "Discord /history command");
+
+    // Load user session
+    let command_ctx = to_command_context(&ctx).await;
+
+    // Check if user is authenticated
+    if !command_ctx.is_verified() {
+        ctx.send(
+            poise::CreateReply::default()
+                .content("You need to link your account first. Use `/link <phone-number>` to get started.")
+                .ephemeral(true),
+        )
+        .await?;
+        return Ok(());
+    }
+
+    // Build command text for parser
+    let command_text = if let Some(lim) = limit {
+        format!("history {}", lim)
+    } else {
+        "history".to_string()
+    };
+
+    match CommandParser::parse(&command_text) {
+        Ok(parsed_command) => {
+            match ctx.data().router.route(&parsed_command, &command_ctx).await {
+                Ok(response) => {
+                    // Parse transaction JSON from response message
+                    if response.message.starts_with("TRANSACTIONS:") {
+                        let parts: Vec<&str> = response.message.splitn(2, "\n\n").collect();
+                        if parts.len() < 2 {
+                            ctx.send(
+                                poise::CreateReply::default()
+                                    .content("Failed to parse transaction history")
+                                    .ephemeral(true),
+                            )
+                            .await?;
+                            return Ok(());
+                        }
+
+                        let json_str = parts[0].strip_prefix("TRANSACTIONS:").unwrap_or("");
+
+                        #[derive(serde::Deserialize)]
+                        struct TransactionData {
+                            id: String,
+                            status: String,
+                            direction: String,
+                            memo: Option<String>,
+                            settlement_amount: i64,
+                            settlement_currency: String,
+                            created_at: i64,
+                        }
+
+                        let transactions: Vec<TransactionData> = match serde_json::from_str(json_str) {
+                            Ok(data) => data,
+                            Err(e) => {
+                                error!(error = %e, "Failed to parse transaction JSON");
+                                ctx.send(
+                                    poise::CreateReply::default()
+                                        .embed(utils::build_error_embed(
+                                            "Parse Error",
+                                            &format!("Failed to parse transaction data: {}", e),
+                                        ))
+                                        .ephemeral(true),
+                                )
+                                .await?;
+                                return Ok(());
+                            }
+                        };
+
+                        if transactions.is_empty() {
+                            ctx.send(
+                                poise::CreateReply::default()
+                                    .embed(utils::build_info_embed(
+                                        "Transaction History",
+                                        "No transactions found."
+                                    ))
+                                    .ephemeral(true),
+                            )
+                            .await?;
+                            return Ok(());
+                        }
+
+                        // Build transaction history embed
+                        let mut embed = serenity::CreateEmbed::default()
+                            .title(format!("{} Transaction History", utils::emojis::MONEY))
+                            .description(format!("Last {} transactions", transactions.len()))
+                            .color(utils::colors::INFO);
+
+                        for tx in transactions.iter().take(10) {
+                            let direction_emoji = if tx.direction == "SEND" { "📤" } else { "📥" };
+                            let amount_display = if tx.direction == "SEND" {
+                                format!("-{} sats", utils::format_sats(tx.settlement_amount))
+                            } else {
+                                format!("+{} sats", utils::format_sats(tx.settlement_amount))
+                            };
+
+                            let timestamp = chrono::DateTime::from_timestamp(tx.created_at, 0)
+                                .map(|dt| format!("<t:{}:R>", tx.created_at))
+                                .unwrap_or_else(|| "Unknown".to_string());
+
+                            let memo_text = tx.memo.as_deref().unwrap_or("_No memo_");
+                            let status_emoji = match tx.status.as_str() {
+                                "SUCCESS" => "✅",
+                                "PENDING" => "⏳",
+                                "FAILED" => "❌",
+                                _ => "❔",
+                            };
+
+                            embed = embed.field(
+                                format!("{} {} {}", direction_emoji, amount_display, status_emoji),
+                                format!("{}\n{}", memo_text, timestamp),
+                                false,
+                            );
+                        }
+
+                        ctx.send(
+                            poise::CreateReply::default()
+                                .embed(embed)
+                                .ephemeral(true),
+                        )
+                        .await?;
+                    } else {
+                        // Fallback if no JSON found
+                        ctx.send(
+                            poise::CreateReply::default()
+                                .content(response.message)
+                                .ephemeral(true),
+                        )
+                        .await?;
+                    }
+                }
+                Err(e) => {
+                    error!(error = %e, "Failed to execute history command");
+                    ctx.send(
+                        poise::CreateReply::default()
+                            .embed(utils::build_error_embed("History Fetch Failed", &format!("{}", e)))
+                            .ephemeral(true),
+                    )
+                    .await?;
+                }
+            }
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to parse history command");
+            ctx.send(
+                poise::CreateReply::default()
+                    .embed(utils::build_error_embed("Error", &format!("Failed to parse command: {}", e)))
+                    .ephemeral(true),
+            )
+            .await?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Get all commands to register with poise framework
 pub fn commands() -> Vec<poise::Command<Data, Error>> {
-    vec![help(), balance(), price(), link(), verify(), unlink(), send(), receive(), pay()]
+    vec![help(), balance(), price(), link(), verify(), unlink(), send(), receive(), pay(), history()]
 }
