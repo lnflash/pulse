@@ -46,7 +46,15 @@ static RECEIVE_PATTERN: Lazy<Regex> = Lazy::new(|| {
 });
 
 static RECEIVE_NO_AMOUNT_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)^(?:receive|invoice|request)$").unwrap()
+    Regex::new(r"(?i)^(?:receive|invoice)$").unwrap()
+});
+
+static REQUEST_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)^request\s+(\d+(?:\.\d+)?)\s*(sats?|satoshis?|btc|bitcoin|usd?|\$)?$").unwrap()
+});
+
+static REQUEST_NO_AMOUNT_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)^request$").unwrap()
 });
 
 static PAY_PATTERN: Lazy<Regex> = Lazy::new(|| {
@@ -142,6 +150,26 @@ impl CommandParser {
         if RECEIVE_NO_AMOUNT_PATTERN.is_match(text) {
             // Variable amount invoice (no amount specified)
             return Ok(Self::create_command(CommandType::Receive, text));
+        }
+
+        if let Some(caps) = REQUEST_PATTERN.captures(text) {
+            let amount = caps.get(1).unwrap().as_str();
+            let unit = caps.get(2).map(|m| m.as_str()).unwrap_or("sats");
+
+            let mut args = HashMap::new();
+            args.insert("amount".to_string(), amount.to_string());
+            args.insert("unit".to_string(), Self::normalize_unit(unit));
+
+            return Ok(ParsedCommand {
+                command_type: CommandType::Request,
+                args,
+                raw_text: text.to_string(),
+            });
+        }
+
+        if REQUEST_NO_AMOUNT_PATTERN.is_match(text) {
+            // Variable amount payment request (no amount specified)
+            return Ok(Self::create_command(CommandType::Request, text));
         }
 
         if let Some(caps) = PAY_PATTERN.captures(text) {

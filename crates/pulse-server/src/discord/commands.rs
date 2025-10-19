@@ -967,7 +967,173 @@ pub async fn history(
     Ok(())
 }
 
+/// Request payment command - create payment request with QR code
+#[poise::command(slash_command)]
+pub async fn request(
+    ctx: Context<'_>,
+    #[description = "Amount to request in sats (optional for any-amount request)"] amount: Option<i64>,
+    #[description = "Optional memo for the request"] memo: Option<String>,
+) -> Result<(), Error> {
+    debug!(user = %ctx.author().name, amount = ?amount, "Discord /request command");
+
+    // Load user session
+    let command_ctx = to_command_context(&ctx).await;
+
+    // Check if user is authenticated
+    if !command_ctx.is_verified() {
+        ctx.send(
+            poise::CreateReply::default()
+                .content("You need to link your account first. Use `/link <phone-number>` to get started.")
+                .ephemeral(true),
+        )
+        .await?;
+        return Ok(());
+    }
+
+    // Build command text for parser
+    let command_text = if let Some(amt) = amount {
+        format!("request {} sats", amt)
+    } else {
+        "request".to_string()
+    };
+
+    match CommandParser::parse(&command_text) {
+        Ok(mut parsed_command) => {
+            // Add memo to args if provided
+            if let Some(m) = memo.as_ref() {
+                parsed_command.args.insert("memo".to_string(), m.clone());
+            }
+
+            match ctx.data().router.route(&parsed_command, &command_ctx).await {
+                Ok(response) => {
+                    // Parse request JSON from response message
+                    if response.message.starts_with("REQUEST:") {
+                        let parts: Vec<&str> = response.message.splitn(2, "\n\n").collect();
+                        if parts.len() < 2 {
+                            ctx.send(
+                                poise::CreateReply::default()
+                                    .content("Failed to parse payment request response")
+                                    .ephemeral(true),
+                            )
+                            .await?;
+                            return Ok(());
+                        }
+
+                        let json_str = parts[0].strip_prefix("REQUEST:").unwrap_or("");
+
+                        #[derive(serde::Deserialize)]
+                        struct RequestData {
+                            payment_request: String,
+                            payment_hash: String,
+                            amount_sats: Option<i64>,
+                        }
+
+                        let request_data: RequestData = match serde_json::from_str(json_str) {
+                            Ok(data) => data,
+                            Err(e) => {
+                                error!(error = %e, "Failed to parse request JSON");
+                                ctx.send(
+                                    poise::CreateReply::default()
+                                        .embed(utils::build_error_embed(
+                                            "Parse Error",
+                                            &format!("Failed to parse payment request data: {}", e),
+                                        ))
+                                        .ephemeral(true),
+                                )
+                                .await?;
+                                return Ok(());
+                            }
+                        };
+
+                        let payment_request = &request_data.payment_request;
+                        let amount_sats = request_data.amount_sats;
+
+                        // Generate QR code
+                        let qr_bytes = match utils::generate_qr_code_png(payment_request) {
+                            Ok(bytes) => bytes,
+                            Err(e) => {
+                                error!(error = %e, "Failed to generate QR code");
+                                ctx.send(
+                                    poise::CreateReply::default()
+                                        .embed(utils::build_error_embed(
+                                            "QR Code Generation Failed",
+                                            &format!("Failed to generate QR code: {}", e),
+                                        ))
+                                        .ephemeral(true),
+                                )
+                                .await?;
+                                return Ok(());
+                            }
+                        };
+
+                        // Create payment request embed
+                        let embed = match utils::build_invoice_embed(
+                            amount_sats.unwrap_or(0),
+                            payment_request,
+                            memo.as_deref(),
+                        ) {
+                            Ok(embed) => embed,
+                            Err(e) => {
+                                error!(error = %e, "Failed to build payment request embed");
+                                ctx.send(
+                                    poise::CreateReply::default()
+                                        .embed(utils::build_error_embed(
+                                            "Embed Creation Failed",
+                                            &format!("Failed to create payment request embed: {}", e),
+                                        ))
+                                        .ephemeral(true),
+                                )
+                                .await?;
+                                return Ok(());
+                            }
+                        };
+
+                        // Create attachment
+                        let attachment = serenity::CreateAttachment::bytes(qr_bytes, "payment_request_qr.png");
+
+                        ctx.send(
+                            poise::CreateReply::default()
+                                .embed(embed)
+                                .attachment(attachment)
+                                .ephemeral(true),
+                        )
+                        .await?;
+                    } else {
+                        // Fallback if no JSON found
+                        ctx.send(
+                            poise::CreateReply::default()
+                                .content(response.message)
+                                .ephemeral(true),
+                        )
+                        .await?;
+                    }
+                }
+                Err(e) => {
+                    error!(error = %e, "Failed to execute request command");
+                    ctx.send(
+                        poise::CreateReply::default()
+                            .embed(utils::build_error_embed("Payment Request Failed", &format!("{}", e)))
+                            .ephemeral(true),
+                    )
+                    .await?;
+                }
+            }
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to parse request command");
+            ctx.send(
+                poise::CreateReply::default()
+                    .embed(utils::build_error_embed("Error", &format!("Failed to parse command: {}", e)))
+                    .ephemeral(true),
+            )
+            .await?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Get all commands to register with poise framework
 pub fn commands() -> Vec<poise::Command<Data, Error>> {
-    vec![help(), balance(), price(), link(), verify(), unlink(), send(), receive(), pay(), history()]
+    vec![help(), balance(), price(), link(), verify(), unlink(), send(), receive(), request(), pay(), history()]
 }

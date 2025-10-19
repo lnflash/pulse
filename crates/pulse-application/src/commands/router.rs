@@ -49,6 +49,10 @@ impl CommandRouter {
             Arc::new(ReceiveHandler::new(auth_service.clone(), flash_api.clone())),
         );
         handlers.insert(
+            CommandType::Request,
+            Arc::new(RequestHandler::new(auth_service.clone(), flash_api.clone())),
+        );
+        handlers.insert(
             CommandType::Pay,
             Arc::new(PayHandler::new(auth_service.clone(), flash_api.clone())),
         );
