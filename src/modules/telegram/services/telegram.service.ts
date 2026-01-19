@@ -46,16 +46,20 @@ export class TelegramService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
+    const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
+    this.logger.log(`TelegramService.onModuleInit - enabled=${this.enabled}, hasToken=${!!token}, tokenLength=${token?.length || 0}`);
+    
     if (!this.enabled) {
       this.logger.warn('Telegram bot disabled - TELEGRAM_BOT_TOKEN not configured');
       return;
     }
 
     try {
-      const token = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
       this.bot = new Telegraf(token!);
+      this.logger.log('Telegraf instance created, setting up handlers...');
       
       this.setupHandlers();
+      this.logger.log('Handlers set up, launching bot...');
       
       await this.bot.launch();
       this.logger.log('🤖 Telegram bot started successfully');

@@ -82,4 +82,7 @@ export const validationSchema = Joi.object({
   NOSTR_PRIVATE_KEY: Joi.string().optional(),
   NOSTR_RELAYS: Joi.string().optional(),
   NOSTR_PULSE_NPUB: Joi.string().optional(),
+
+  // Telegram Configuration (optional)
+  TELEGRAM_BOT_TOKEN: Joi.string().optional(),
 }).unknown(true); // Allow other env vars

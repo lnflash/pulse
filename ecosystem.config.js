@@ -2,6 +2,7 @@ module.exports = {
   apps: [{
     name: 'flash-whatsapp-dev',
     script: 'dist/main.js',
+    node_args: '-r dotenv/config',
     watch: ['dist'],
     ignore_watch: ['node_modules', '.git', '*.log', 'session-*', 'src'],
     watch_delay: 2000,
