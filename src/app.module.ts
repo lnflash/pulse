@@ -18,6 +18,7 @@ import { CryptoModule } from './common/crypto/crypto.module';
 import { HealthController } from './health.controller';
 import { CommonModule } from './modules/common/common.module';
 import { CatchAllModule } from './common/modules/catch-all.module';
+import { TelegramModule } from './modules/telegram';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { CatchAllModule } from './common/modules/catch-all.module';
     AuthModule,
     NotificationsModule,
     AdminDashboardModule,
+    TelegramModule,
     
     // Catch-all module MUST be imported last
     CatchAllModule,

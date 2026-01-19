@@ -83,6 +83,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "swagger-ui-express": "^5.0.1",
+    "telegraf": "^4.16.3",
     "twilio": "^5.7.1",
     "whatsapp-web.js": "^1.30.0",
     "ws": "^8.18.2"
