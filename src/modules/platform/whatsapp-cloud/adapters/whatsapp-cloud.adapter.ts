@@ -1,12 +1,14 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MESSAGE_TRANSPORT } from '../../../queue/queue.module';
 import { MessageTransport } from '../../../../core/ports/message-transport.port';
 import { InboundMessage, OutboundMessage, Platform, ActorId, ChatId } from '../../../../core/types';
 import axios from 'axios';
+import * as FormData from 'form-data';
 
 @Injectable()
 export class WhatsAppCloudAdapter {
+  private readonly logger = new Logger(WhatsAppCloudAdapter.name);
   private readonly apiUrl = 'https://graph.facebook.com/v18.0';
   private readonly accessToken: string;
   private readonly phoneNumberId: string;
@@ -55,6 +57,20 @@ export class WhatsAppCloudAdapter {
         mediaRef: message.audio?.id || message.voice?.id,
         mimeType: message.audio?.mime_type || message.voice?.mime_type,
       };
+    } else if (message.type === 'document') {
+      content = {
+        type: 'document',
+        mediaRef: message.document.id,
+        filename: message.document.filename,
+        mimeType: message.document.mime_type,
+      };
+    } else if (message.type === 'video') {
+      content = {
+        type: 'image',
+        mediaRef: message.video.id,
+        caption: message.video.caption,
+        mimeType: message.video.mime_type,
+      };
     } else {
       return;
     }
@@ -84,6 +100,23 @@ export class WhatsAppCloudAdapter {
       const text = this.formatText(textContent.body);
       payload.type = 'text';
       payload.text = { body: text };
+    } else if (message.content.type === 'image') {
+      payload.type = 'image';
+      payload.image = { id: message.content.mediaRef };
+      if (message.content.caption) {
+        payload.image.caption = this.formatText(message.content.caption);
+      }
+    } else if (message.content.type === 'voice') {
+      payload.type = 'audio';
+      payload.audio = { id: message.content.mediaRef };
+    } else if (message.content.type === 'document') {
+      payload.type = 'document';
+      payload.document = { id: message.content.mediaRef };
+      if (message.content.filename) {
+        payload.document.filename = message.content.filename;
+      }
+    } else if (message.content.type === 'typing') {
+      return; // typing indicators not supported via Cloud API send
     }
 
     await axios.post(url, payload, {
@@ -92,6 +125,58 @@ export class WhatsAppCloudAdapter {
         'Content-Type': 'application/json',
       },
     });
+  }
+
+  async downloadMedia(mediaId: string): Promise<Buffer> {
+    const metaUrl = `${this.apiUrl}/${mediaId}`;
+    const metaResponse = await axios.get(metaUrl, {
+      headers: { Authorization: `Bearer ${this.accessToken}` },
+    });
+
+    const mediaUrl = metaResponse.data.url;
+    const mediaResponse = await axios.get(mediaUrl, {
+      headers: { Authorization: `Bearer ${this.accessToken}` },
+      responseType: 'arraybuffer',
+    });
+
+    return Buffer.from(mediaResponse.data);
+  }
+
+  async uploadMedia(buffer: Buffer, mimeType: string, filename?: string): Promise<string> {
+    const url = `${this.apiUrl}/${this.phoneNumberId}/media`;
+
+    const form = new FormData();
+    form.append('file', buffer, {
+      contentType: mimeType,
+      filename: filename || `file.${this.getExtensionForMimeType(mimeType)}`,
+    });
+    form.append('type', mimeType);
+    form.append('messaging_product', 'whatsapp');
+
+    const response = await axios.post(url, form, {
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+        ...form.getHeaders(),
+      },
+    });
+
+    return response.data.id;
+  }
+
+  private getExtensionForMimeType(mimeType: string): string {
+    const map: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'audio/ogg': 'ogg',
+      'audio/mpeg': 'mp3',
+      'audio/mp4': 'm4a',
+      'video/mp4': 'mp4',
+      'application/pdf': 'pdf',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    };
+    return map[mimeType] || 'bin';
   }
 
   private formatText(segments: any[]): string {
