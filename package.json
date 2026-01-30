@@ -23,6 +23,7 @@
     "build:watch": "nest build --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "migrate:redis": "ts-node src/scripts/migrate-redis-keys.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "typecheck": "tsc --noEmit",
     "test": "jest --config jest.config.js",
