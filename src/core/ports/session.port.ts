@@ -9,6 +9,7 @@ export interface Session {
   language?: string;
   lastActivity: Date;
   conversationContext?: Record<string, unknown>;
+  onboardingSkipped?: boolean;
 }
 
 export interface SessionPort {

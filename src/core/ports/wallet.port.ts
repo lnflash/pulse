@@ -111,6 +111,9 @@ export interface WalletPort {
   removeContact(userId: UserId, name: string): Promise<boolean>;
   getContactHistory(userId: UserId, contactName: string): Promise<ContactHistoryEntry[]>;
 
+  // Balance cache
+  clearBalanceCache(userId: UserId): Promise<void>;
+
   // Invoice / Pay
   payInvoice(userId: UserId, invoice: string): Promise<PayInvoiceResult>;
   decodeInvoice(userId: UserId, invoice: string): Promise<DecodedInvoice>;

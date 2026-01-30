@@ -109,6 +109,11 @@ export class WalletFacade implements WalletPort {
     this.logger.warn(`setConsent not yet implemented: ${userId.value} -> ${consent}`);
   }
 
+  async clearBalanceCache(userId: UserId): Promise<void> {
+    this.logger.debug(`Clearing balance cache for ${userId.value}`);
+    await this.balanceService.clearCache(userId.value);
+  }
+
   async getContacts(userId: UserId): Promise<Contact[]> {
     this.logger.warn(`getContacts not yet implemented: ${userId.value}`);
     return [];
