@@ -1572,7 +1572,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 13. Command Handler Migration — Batch 3: Social, Utility, and Meta Commands
+- [x] 13. Command Handler Migration — Batch 3: Social, Utility, and Meta Commands
 
   **What to do**:
   - Migrate remaining commands:
@@ -1950,7 +1950,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 20. Redis Data Migration Script
+- [x] 20. Redis Data Migration Script
 
   **What to do**:
   - Write a migration script that:
@@ -2135,7 +2135,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 23. Deployment Configuration + Cutover Plan
+- [x] 23. Deployment Configuration + Cutover Plan
 
   **What to do**:
   - Update deployment configuration:
