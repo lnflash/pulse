@@ -31,6 +31,7 @@ function createMockWallet(): jest.Mocked<WalletPort> {
     payInvoice: jest.fn(),
     decodeInvoice: jest.fn(),
     confirmPendingPayment: jest.fn(),
+    clearBalanceCache: jest.fn(),
   };
 }
 

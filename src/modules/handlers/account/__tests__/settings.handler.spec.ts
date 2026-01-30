@@ -11,10 +11,23 @@ function createMockWallet(): jest.Mocked<WalletPort> {
     sendPayment: jest.fn(),
     createInvoice: jest.fn(),
     getTransactionHistory: jest.fn(),
+    getTransaction: jest.fn(),
+    getPendingPayments: jest.fn(),
+    claimPendingPayment: jest.fn(),
+    undoLastTransaction: jest.fn(),
     getPrice: jest.fn(),
     getUserInfo: jest.fn(),
     setUsername: jest.fn(),
     setConsent: jest.fn(),
+    getContacts: jest.fn(),
+    addContact: jest.fn(),
+    removeContact: jest.fn(),
+    getContactHistory: jest.fn(),
+    clearBalanceCache: jest.fn(),
+    payInvoice: jest.fn(),
+    decodeInvoice: jest.fn(),
+    confirmPendingPayment: jest.fn(),
+    requestPayment: jest.fn(),
   };
 }
 
