@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
+import { IntentPipelineService } from './pipeline/intent-pipeline.service';
 
 @Module({
-  imports: [],
-  providers: [],
-  exports: [],
+  providers: [IntentPipelineService],
+  exports: [IntentPipelineService],
 })
 export class NlpModule {}
