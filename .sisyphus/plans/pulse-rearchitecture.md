@@ -619,7 +619,7 @@ import './entrypoints/monolith';
 
 **Branch Note for Tasks 1–3**: These documentation-only tasks produce `docs/*.md` files. They are committed to the `rewrite/hexagonal` branch. **Create the branch first** (a minimal `git checkout -b rewrite/hexagonal` from `main`) before starting any task. Task 5 then scaffolds the module structure on the already-existing branch.
 
-- [ ] 1. Feature Inventory: Extract Complete Command + Feature List from God Service
+- [x] 1. Feature Inventory: Extract Complete Command + Feature List from God Service
 
   **What to do**:
   - Parse `src/modules/whatsapp/services/whatsapp.service.ts` (6,508 lines) to extract every command/feature branch
@@ -698,7 +698,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 2. Meta WhatsApp Business API Setup + Feature Gap Analysis
+- [x] 2. Meta WhatsApp Business API Setup + Feature Gap Analysis
 
   **What to do**:
   - Research and document the Meta WhatsApp Business API setup process
@@ -781,7 +781,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 3. Redis Schema Documentation + Migration Strategy
+- [x] 3. Redis Schema Documentation + Migration Strategy
 
   **What to do**:
   - Trace all Redis key patterns used in the current codebase
@@ -848,7 +848,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 4. Design Canonical Message Model + Port Interfaces
+- [x] 4. Design Canonical Message Model + Port Interfaces
 
   **What to do**:
   - Design the canonical types that form the system's spine:
@@ -962,7 +962,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 5. Project Scaffold: Create Branch, Directory Structure, Module Skeletons
+- [x] 5. Project Scaffold: Create Branch, Directory Structure, Module Skeletons
 
   **What to do**:
   - **Branch already exists** (created before Task 1 per the "Branch Note for Tasks 1–3" above). Task 5 works on the existing `rewrite/hexagonal` branch — do NOT create it again.
@@ -1104,7 +1104,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 6. Implement Identity + Session Modules
+- [x] 6. Implement Identity + Session Modules
 
   **What to do**:
   - **IdentityModule**: Implement `IdentityPort`
@@ -1161,7 +1161,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 7. Implement Wallet Module (Flash API Port)
+- [x] 7. Implement Wallet Module (Flash API Port)
 
   **What to do**:
   - Implement `WalletPort` by wrapping existing Flash API calls
@@ -1229,7 +1229,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 8. Implement NLP Module (Intent Pipeline + Patois Normalization)
+- [x] 8. Implement NLP Module (Intent Pipeline + Patois Normalization)
 
   **What to do**:
   - Implement `IntentClassifierPort` with a pipeline architecture:
@@ -1298,7 +1298,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 9. Implement Bot Core Module (Orchestrator + Handler Registry)
+- [x] 9. Implement Bot Core Module (Orchestrator + Handler Registry)
 
   **What to do**:
   - **MessageOrchestrator**: The system's brain — receives `InboundMessage`, produces effects
@@ -1385,7 +1385,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 10. Implement WhatsApp Cloud API Adapter
+- [x] 10. Implement WhatsApp Cloud API Adapter
 
   **What to do**:
   - Implement `MessageIngressPort` and `MessageEgressPort` for WhatsApp Cloud API
@@ -1458,7 +1458,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 11. Command Handler Migration — Batch 1: Core Wallet Commands
+- [x] 11. Command Handler Migration — Batch 1: Core Wallet Commands
 
   **What to do**:
   - Migrate these commands from the god service into individual handler classes:
@@ -1523,7 +1523,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 12. Command Handler Migration — Batch 2: Account Management Commands
+- [x] 12. Command Handler Migration — Batch 2: Account Management Commands
 
   **What to do**:
   - Migrate these commands:
@@ -1731,7 +1731,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 16. Implement Voice Module (Pluggable STT/TTS)
+- [x] 16. Implement Voice Module (Pluggable STT/TTS)
 
   **What to do**:
   - Implement `VoicePort` with pluggable adapter architecture:
@@ -1896,7 +1896,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 19. Implement Observability Module
+- [x] 19. Implement Observability Module
 
   **What to do**:
   - Structured logging with correlation IDs:
@@ -2000,7 +2000,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 21. RabbitMQ Message Contracts + Process Split Architecture
+- [x] 21. RabbitMQ Message Contracts + Process Split Architecture
 
   **What to do**:
   - **Relationship to existing RabbitMQ/events infrastructure**: The old codebase has `src/modules/events/services/event-dispatcher.service.ts` which uses `amqplib` with exchanges and routing keys. This task **supersedes** the old events module — the new `src/modules/queue/` replaces it entirely. The old `src/modules/events/` is NOT imported by the new app (it remains as legacy reference only, just like other old modules). In **monolith mode**, the queue module uses **`InProcessTransport`** (direct function references / callbacks, NO EventEmitter2) instead of RabbitMQ — RabbitMQ is only required when running in multi-process mode. This means monolith mode has zero RabbitMQ dependency.
@@ -2068,7 +2068,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 22. Integration Testing + Feature Parity Matrix
+- [x] 22. Integration Testing + Feature Parity Matrix
 
   **What to do**:
   - Write end-to-end integration tests that verify:
