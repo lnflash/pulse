@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { UserId } from '../../core/types';
-import { WalletPort } from '../../core/ports/wallet.port';
+import { UserInfo, WalletPort } from '../../core/ports/wallet.port';
 import { SessionPort } from '../../core/ports/session.port';
 import { BalanceService } from './services/balance.service';
 import { PaymentService } from './services/payment.service';
@@ -56,6 +56,19 @@ export class WalletFacade implements WalletPort {
 
   async getPrice(currency: string): Promise<unknown> {
     return this.priceService.getPrice(currency);
+  }
+
+  async getUserInfo(userId: UserId): Promise<UserInfo> {
+    this.logger.warn(`getUserInfo not yet implemented for ${userId.value}`);
+    return {};
+  }
+
+  async setUsername(userId: UserId, username: string): Promise<void> {
+    this.logger.warn(`setUsername not yet implemented: ${userId.value} -> ${username}`);
+  }
+
+  async setConsent(userId: UserId, consent: boolean): Promise<void> {
+    this.logger.warn(`setConsent not yet implemented: ${userId.value} -> ${consent}`);
   }
 
   private async getAuthToken(userId: UserId): Promise<string> {
