@@ -1620,7 +1620,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 14. Implement Telegram Adapter
+- [x] 14. Implement Telegram Adapter
 
   **What to do**:
   - Implement `MessageIngressPort` and `MessageEgressPort` for Telegram
