@@ -1,6 +1,6 @@
 {
   "name": "flash-whatsapp-service",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "Flash WhatsApp Service - WhatsApp integration for Flash Bitcoin wallet",
   "main": "dist/main.js",
   "private": true,
