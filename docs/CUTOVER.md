@@ -1,124 +1,128 @@
 # Cutover Plan - Pulse Hexagonal Rewrite
 
 ## Overview
-Migration from monolithic WhatsApp service to hexagonal architecture with WhatsApp Cloud API.
+
+Migration from monolithic WhatsApp service to hexagonal architecture with WhatsApp Cloud API. This plan ensures a safe transition with minimal downtime and a clear path for rollback.
 
 ## Pre-Cutover Checklist
 
 ### Code Readiness
-- [ ] All 36 tasks complete
+
+- [ ] All 36 tasks complete (Core wallet operations + 24/37 handlers)
 - [ ] Build passing (`npm run build`)
 - [ ] All tests passing (`npm test`)
-- [ ] Integration tests verified
-- [ ] No TypeScript errors
+- [ ] Integration tests verified with mocked WhatsApp Cloud API
+- [ ] No TypeScript errors (`npm run lint` / `tsc`)
 - [ ] No ESLint warnings
 
-### Infrastructure
-- [ ] Meta WhatsApp Business Account verified
+### Infrastructure & Meta API
+
+- [ ] Meta Developer account created at developers.facebook.com
+- [ ] Meta Business verified (Required for production limits)
+- [ ] WhatsApp Business app created in Meta dashboard
 - [ ] Phone number registered with Cloud API
-- [ ] Webhook URL configured and verified
-- [ ] Access tokens generated (permanent)
-- [ ] Redis instance ready
-- [ ] Environment variables configured
+- [ ] Permanent access token generated (System User token)
+- [ ] Webhook URL configured (HTTPS required)
+- [ ] Webhook verify token set (matches `WHATSAPP_VERIFY_TOKEN`)
+- [ ] Webhook subscriptions enabled: `messages`, `message_deliveries`, `message_reads`
+- [ ] App secret noted (for `X-Hub-Signature-256` verification)
+- [ ] Redis instance ready with authentication enabled
 
 ### Data Migration
-- [ ] Redis migration script tested
-- [ ] Backup of current Redis data
-- [ ] Migration dry-run completed
-- [ ] Rollback procedure documented
+
+- [ ] Redis migration script tested (`src/scripts/migrate-redis-keys.ts`)
+- [ ] Full backup of current Redis data (`SAVE` or `BGSAVE`)
+- [ ] Migration dry-run completed on staging environment
+- [ ] Rollback procedure documented and verified
 
 ### Monitoring
-- [ ] Logging configured (ObservabilityModule)
-- [ ] Health check endpoint ready
-- [ ] Error tracking enabled
-- [ ] Metrics collection ready
 
-## Cutover Steps
+- [ ] Logging configured (ObservabilityModule)
+- [ ] Health check endpoint ready (`/health`)
+- [ ] Sentry/Error tracking enabled (Optional but recommended)
+- [ ] Metrics collection ready (Prometheus/Grafana if applicable)
+
+## Cutover Procedure (Step-by-Step)
 
 ### Phase 1: Preparation (T-24h)
-1. Announce maintenance window to users
-2. Create full Redis backup
-3. Deploy new code to staging
-4. Run integration tests on staging
-5. Verify webhook connectivity
+
+1. Announce maintenance window to users (Low traffic hours: 2-4 AM UTC recommended).
+2. Create full Redis backup: `redis-cli SAVE && cp /var/lib/redis/dump.rdb /backup/pre-cutover-dump.rdb`.
+3. Deploy new code to production server (but do not start yet).
+4. Run `npm install --production` and `npm run build`.
+5. Verify `.env.production` is fully populated with new variables.
 
 ### Phase 2: Migration (T-0)
-1. Enable maintenance mode
-2. Stop old service
+
+1. Enable maintenance mode (Nginx splash page or bot auto-reply).
+2. Stop old service: `pm2 stop pulse-production`.
 3. Run Redis migration script:
    ```bash
-   ts-node src/scripts/migrate-redis-keys.ts
+   NODE_ENV=production npx ts-node src/scripts/migrate-redis-keys.ts
    ```
-4. Verify migration results
-5. Start new service
-6. Verify health check
+4. Verify migration results (Check for new key patterns in Redis).
+5. Start new service in Monolith mode:
+   ```bash
+   pm2 start ecosystem.prod.config.js --only pulse-monolith
+   ```
+6. Verify health check: `curl http://localhost:3000/health`.
 
 ### Phase 3: Verification (T+15m)
-1. Send test message via WhatsApp
-2. Verify webhook receives message
-3. Verify handler processes message
-4. Verify response sent
-5. Check logs for errors
-6. Monitor Redis for new keys
 
-### Phase 4: Monitoring (T+1h)
-1. Monitor error rates
-2. Check message throughput
-3. Verify user sessions persist
-4. Monitor Flash API calls
-5. Check Redis memory usage
+1. Send test message "ping" or "help" via WhatsApp to the production number.
+2. Verify webhook receives message (Check `logs/pulse-out.log`).
+3. Verify handler processes message and sends response.
+4. Verify response received on WhatsApp.
+5. Check logs for any `ERROR` or `CRITICAL` level entries.
+6. Monitor Redis for new session keys.
 
-## Rollback Procedure
+### Phase 4: Post-Cutover Monitoring (First 24 Hours)
 
-If critical issues detected:
+1. **T+1h**: Monitor error rates and message throughput.
+2. **T+4h**: Verify user sessions are persisting correctly.
+3. **T+12h**: Check Redis memory usage and connection pool health.
+4. **T+24h**: Review Sentry/Logs for edge cases or unhandled exceptions.
 
-1. Stop new service immediately
-2. Restore Redis from backup:
+## Rollback Plan
+
+If critical issues are detected (e.g., >5% error rate, message loss, or system instability):
+
+1. **Stop new service**: `pm2 stop pulse-monolith`.
+2. **Revert Code**: Switch back to the `main` branch (or previous stable tag).
    ```bash
-   redis-cli --rdb /backup/dump.rdb
+   git checkout main
+   npm install
+   npm run build
    ```
-3. Start old service
-4. Verify old service operational
-5. Announce rollback to users
-6. Document failure reason
+3. **Restore Redis**: Restore from the pre-cutover backup.
+   ```bash
+   pm2 stop all
+   sudo service redis-server stop
+   sudo cp /backup/pre-cutover-dump.rdb /var/lib/redis/dump.rdb
+   sudo service redis-server start
+   ```
+4. **Start old service**: `pm2 start ecosystem.config.js` (or previous PM2 config).
+5. **Verify**: Confirm the old bot is responding correctly.
+6. **Communicate**: Inform users that the update was rolled back and service is restored.
 
-## Success Criteria
+## 24-Hour Monitoring Checklist
 
-- [ ] Zero message loss
-- [ ] All active sessions migrated
-- [ ] Response time < 2s
-- [ ] Error rate < 1%
-- [ ] All handlers responding
-- [ ] No Redis key conflicts
-
-## Post-Cutover
-
-### Immediate (T+24h)
-- Monitor logs continuously
-- Track error rates
-- Verify all features working
-- Collect user feedback
-
-### Short-term (T+1w)
-- Analyze performance metrics
-- Optimize slow handlers
-- Fix any edge cases
-- Update documentation
-
-### Long-term (T+1m)
-- Decommission old service
-- Archive old codebase
-- Remove legacy dependencies
-- Celebrate success! 🎉
+- [ ] Error rate remains below 1%
+- [ ] Average response time < 2 seconds
+- [ ] Webhook delivery success rate > 99%
+- [ ] Redis memory usage stable
+- [ ] No "unhandledRejection" or "uncaughtException" in logs
+- [ ] Flash API authentication remains valid
+- [ ] WhatsApp Cloud API token remains valid
 
 ## Emergency Contacts
 
-- On-call Engineer: [TBD]
-- Meta Support: business.facebook.com/support
-- Redis Support: [TBD]
+- **Lead Engineer**: [Name/Phone]
+- **Infrastructure**: [Name/Phone]
+- **Meta Support**: [Link to Business Support]
 
 ## Notes
 
-- Estimated downtime: 15-30 minutes
-- Best time: Low traffic hours (2-4 AM UTC)
-- Communication: Status page + in-app notifications
+- Estimated downtime: 15-30 minutes.
+- The migration is non-destructive to old Redis keys, but a backup is mandatory.
+- Multi-process mode (RabbitMQ) can be enabled later by starting `pulse-gateway` and `pulse-worker` instead of `pulse-monolith`.

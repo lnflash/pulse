@@ -1,43 +1,59 @@
 module.exports = {
   apps: [
+    // Monolith Mode (Default)
     {
-      name: 'pulse-production',
+      name: 'pulse-monolith',
       script: './dist/main.js',
-      instances: 1, // Single instance for WhatsApp Web
+      instances: 1,
       exec_mode: 'fork',
       env: {
         NODE_ENV: 'production',
+        TRANSPORT_MODE: 'in-process',
       },
       error_file: './logs/pulse-error.log',
       out_file: './logs/pulse-out.log',
       log_file: './logs/pulse-combined.log',
       time: true,
-      
-      // Restart settings
       max_restarts: 10,
       min_uptime: '10s',
       restart_delay: 4000,
       autorestart: true,
-      
-      // Memory management
       max_memory_restart: '1G',
-      
-      // Monitoring
-      monitoring: true,
-      
-      // Graceful shutdown
-      kill_timeout: 10000,
+      node_args: '--max-old-space-size=1024',
       wait_ready: true,
       listen_timeout: 10000,
-      
-      // Node.js flags
-      node_args: '--max-old-space-size=1024',
-      
-      // Environment specific settings
-      env_production: {
+    },
+
+    // Multi-Process Mode: API Gateway
+    {
+      name: 'pulse-gateway',
+      script: './dist/main.js',
+      instances: 1,
+      exec_mode: 'fork',
+      env: {
         NODE_ENV: 'production',
-        PORT: 3000,
+        TRANSPORT_MODE: 'rabbitmq',
+        PROCESS_TYPE: 'gateway',
       },
+      error_file: './logs/gateway-error.log',
+      out_file: './logs/gateway-out.log',
+      autorestart: true,
+    },
+
+    // Multi-Process Mode: Message Worker
+    {
+      name: 'pulse-worker',
+      script: './dist/main.js',
+      instances: 2, // Scale workers as needed
+      exec_mode: 'cluster',
+      env: {
+        NODE_ENV: 'production',
+        TRANSPORT_MODE: 'rabbitmq',
+        PROCESS_TYPE: 'worker',
+      },
+      error_file: './logs/worker-error.log',
+      out_file: './logs/worker-out.log',
+      autorestart: true,
     },
   ],
 };
