@@ -1,8 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
+import { LoggerService } from './services/logger.service';
+import { HealthService } from './services/health.service';
 
+@Global()
 @Module({
-  imports: [],
-  providers: [],
-  exports: [],
+  providers: [LoggerService, HealthService],
+  exports: [LoggerService, HealthService],
 })
 export class ObservabilityModule {}
