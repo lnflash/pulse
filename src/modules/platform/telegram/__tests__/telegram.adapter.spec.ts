@@ -3,6 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { TelegramAdapter } from '../adapters/telegram.adapter';
 import { MESSAGE_TRANSPORT } from '../../../queue/queue.module';
 import { Platform } from '../../../../core/types';
+import axios from 'axios';
+
+jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 jest.mock('telegraf', () => {
   const handlers: Record<string, Function> = {};
@@ -22,6 +26,7 @@ jest.mock('telegraf', () => {
         sendVoice: jest.fn().mockResolvedValue({}),
         sendDocument: jest.fn().mockResolvedValue({}),
         sendChatAction: jest.fn().mockResolvedValue({}),
+        getFileLink: jest.fn().mockResolvedValue({ href: 'https://api.telegram.org/file/test' }),
       },
       _handlers: handlers,
     })),
@@ -343,6 +348,47 @@ describe('TelegramAdapter', () => {
           chat: expect.objectContaining({ isGroup: true }),
         }),
       );
+    });
+  });
+
+  describe('downloadMedia', () => {
+    it('should download file from Telegram', async () => {
+      const fileBuffer = Buffer.from('fake-file-data');
+      bot.telegram.getFileLink.mockResolvedValueOnce({
+        href: 'https://api.telegram.org/file/bot-token/file-path',
+      });
+      mockedAxios.get.mockResolvedValueOnce({ data: fileBuffer });
+
+      const result = await adapter.downloadMedia('file-123');
+
+      expect(bot.telegram.getFileLink).toHaveBeenCalledWith('file-123');
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        'https://api.telegram.org/file/bot-token/file-path',
+        { responseType: 'arraybuffer' },
+      );
+      expect(result).toBeInstanceOf(Buffer);
+    });
+
+    it('should propagate download errors', async () => {
+      bot.telegram.getFileLink.mockRejectedValueOnce(new Error('Network error'));
+
+      await expect(adapter.downloadMedia('bad-file')).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('uploadMedia', () => {
+    it('should create data URL from buffer', async () => {
+      const buffer = Buffer.from('test data');
+      const result = await adapter.uploadMedia(buffer, 'image/jpeg', 'test.jpg');
+
+      expect(result).toBe('data:image/jpeg;base64,dGVzdCBkYXRh');
+    });
+
+    it('should handle different mime types', async () => {
+      const buffer = Buffer.from('audio data');
+      const result = await adapter.uploadMedia(buffer, 'audio/ogg');
+
+      expect(result).toBe('data:audio/ogg;base64,YXVkaW8gZGF0YQ==');
     });
   });
 });

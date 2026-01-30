@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { Message, Update } from 'telegraf/types';
+import axios from 'axios';
 import { MESSAGE_TRANSPORT } from '../../../queue/queue.module';
 import { MessageTransport } from '../../../../core/ports/message-transport.port';
 import {
@@ -229,5 +230,28 @@ export class TelegramAdapter implements OnModuleInit, OnModuleDestroy {
 
   private escapeHtml(text: string): string {
     return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // ── Media handling ───────────────────────────────────────────────
+
+  async downloadMedia(fileId: string): Promise<Buffer> {
+    if (!this.bot) {
+      throw new Error('Telegram bot not initialized');
+    }
+
+    const fileLink = await this.bot.telegram.getFileLink(fileId);
+    const response = await axios.get(fileLink.href, {
+      responseType: 'arraybuffer',
+    });
+
+    return Buffer.from(response.data);
+  }
+
+  async uploadMedia(buffer: Buffer, mimeType: string, filename?: string): Promise<string> {
+    // Telegram doesn't have a separate upload endpoint
+    // Media is uploaded when sending messages
+    // Return a data URL that can be used with InputFile
+    const base64 = buffer.toString('base64');
+    return `data:${mimeType};base64,${base64}`;
   }
 }
