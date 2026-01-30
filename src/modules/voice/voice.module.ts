@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
+import { ElevenLabsAdapter } from './adapters/elevenlabs.adapter';
 
 @Module({
-  imports: [],
-  providers: [],
-  exports: [],
+  providers: [ElevenLabsAdapter],
+  exports: [ElevenLabsAdapter],
 })
 export class VoiceModule {}
