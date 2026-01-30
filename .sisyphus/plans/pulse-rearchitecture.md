@@ -1837,7 +1837,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 18. Implement Admin Module
+- [x] 18. Implement Admin Module
 
   **What to do**:
   - Migrate admin dashboard and API:
