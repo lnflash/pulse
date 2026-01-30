@@ -9,6 +9,7 @@ import { TransactionService } from './services/transaction.service';
 import { PriceService } from './services/price.service';
 import { UserService } from './services/user.service';
 import { WalletFacade } from './wallet.facade';
+import { WALLET_PORT } from '../../core/ports/tokens';
 
 @Module({
   imports: [ConfigModule, SessionModule],
@@ -21,7 +22,11 @@ import { WalletFacade } from './wallet.facade';
     PriceService,
     UserService,
     WalletFacade,
+    {
+      provide: WALLET_PORT,
+      useExisting: WalletFacade,
+    },
   ],
-  exports: [WalletFacade, FlashApiClient],
+  exports: [WalletFacade, FlashApiClient, WALLET_PORT],
 })
 export class WalletModule {}

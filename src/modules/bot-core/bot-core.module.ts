@@ -5,11 +5,20 @@ import { WalletModule } from '../wallet/wallet.module';
 import { IdentityModule } from '../identity/identity.module';
 import { NlpModule } from '../nlp/nlp.module';
 import { QueueModule } from '../queue/queue.module';
+import { TemplateModule } from '../template/template.module';
 import { MessageOrchestratorService } from './orchestrator/message-orchestrator.service';
 import { CommandRouterService } from './router/command-router.service';
 
 @Module({
-  imports: [DiscoveryModule, SessionModule, WalletModule, IdentityModule, NlpModule, QueueModule],
+  imports: [
+    DiscoveryModule,
+    SessionModule,
+    WalletModule,
+    IdentityModule,
+    NlpModule,
+    QueueModule,
+    TemplateModule,
+  ],
   providers: [MessageOrchestratorService, CommandRouterService],
   exports: [MessageOrchestratorService, CommandRouterService],
 })
