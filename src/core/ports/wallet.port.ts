@@ -31,6 +31,33 @@ export interface TransactionRecord {
   createdAt: Date;
 }
 
+export interface Contact {
+  name: string;
+  phone?: string;
+  username?: string;
+  source: 'manual' | 'vcard';
+  addedAt: Date;
+}
+
+export interface ContactHistoryEntry {
+  type: 'send' | 'receive' | 'request';
+  amount: number;
+  currency: string;
+  date: Date;
+  memo?: string;
+}
+
+export interface PaymentRequest {
+  id: string;
+  fromUserId: string;
+  toTarget: string;
+  amount: number;
+  currency: string;
+  memo?: string;
+  status: 'pending' | 'paid' | 'expired';
+  createdAt: Date;
+}
+
 export interface UndoResult {
   success: boolean;
   message: string;
@@ -53,4 +80,19 @@ export interface WalletPort {
   getUserInfo(userId: UserId): Promise<UserInfo>;
   setUsername(userId: UserId, username: string): Promise<void>;
   setConsent(userId: UserId, consent: boolean): Promise<void>;
+
+  // Social / Contacts
+  getContacts(userId: UserId): Promise<Contact[]>;
+  addContact(userId: UserId, name: string, phone?: string, username?: string): Promise<Contact>;
+  removeContact(userId: UserId, name: string): Promise<boolean>;
+  getContactHistory(userId: UserId, contactName: string): Promise<ContactHistoryEntry[]>;
+
+  // Payment Requests
+  requestPayment(
+    userId: UserId,
+    target: string,
+    amount: number,
+    currency: string,
+    memo?: string,
+  ): Promise<PaymentRequest>;
 }

@@ -6,6 +6,9 @@ import {
   TransactionRecord,
   PendingPayment,
   UndoResult,
+  Contact,
+  ContactHistoryEntry,
+  PaymentRequest,
 } from '../../core/ports/wallet.port';
 import { SessionPort } from '../../core/ports/session.port';
 import { BalanceService } from './services/balance.service';
@@ -101,6 +104,51 @@ export class WalletFacade implements WalletPort {
 
   async setConsent(userId: UserId, consent: boolean): Promise<void> {
     this.logger.warn(`setConsent not yet implemented: ${userId.value} -> ${consent}`);
+  }
+
+  async getContacts(userId: UserId): Promise<Contact[]> {
+    this.logger.warn(`getContacts not yet implemented: ${userId.value}`);
+    return [];
+  }
+
+  async addContact(
+    userId: UserId,
+    name: string,
+    phone?: string,
+    username?: string,
+  ): Promise<Contact> {
+    this.logger.warn(`addContact not yet implemented: ${userId.value} -> ${name}`);
+    return { name, phone, username, source: 'manual', addedAt: new Date() };
+  }
+
+  async removeContact(userId: UserId, name: string): Promise<boolean> {
+    this.logger.warn(`removeContact not yet implemented: ${userId.value} -> ${name}`);
+    return false;
+  }
+
+  async getContactHistory(userId: UserId, contactName: string): Promise<ContactHistoryEntry[]> {
+    this.logger.warn(`getContactHistory not yet implemented: ${userId.value} -> ${contactName}`);
+    return [];
+  }
+
+  async requestPayment(
+    userId: UserId,
+    target: string,
+    amount: number,
+    currency: string,
+    memo?: string,
+  ): Promise<PaymentRequest> {
+    this.logger.warn(`requestPayment not yet implemented: ${userId.value} -> ${target} ${amount}`);
+    return {
+      id: `req-${Date.now()}`,
+      fromUserId: userId.value,
+      toTarget: target,
+      amount,
+      currency,
+      memo,
+      status: 'pending',
+      createdAt: new Date(),
+    };
   }
 
   private async getAuthToken(userId: UserId): Promise<string> {
