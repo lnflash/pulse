@@ -1,6 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { UserId } from '../../core/types';
-import { UserInfo, WalletPort } from '../../core/ports/wallet.port';
+import {
+  UserInfo,
+  WalletPort,
+  TransactionRecord,
+  PendingPayment,
+  UndoResult,
+} from '../../core/ports/wallet.port';
 import { SessionPort } from '../../core/ports/session.port';
 import { BalanceService } from './services/balance.service';
 import { PaymentService } from './services/payment.service';
@@ -48,10 +54,36 @@ export class WalletFacade implements WalletPort {
     return this.invoiceService.createInvoice(authToken, { amount, memo });
   }
 
-  async getTransactionHistory(userId: UserId, limit?: number): Promise<unknown[]> {
+  async getTransactionHistory(userId: UserId, limit?: number): Promise<TransactionRecord[]> {
     const authToken = await this.getAuthToken(userId);
     const result = await this.transactionService.getTransactionHistory(authToken, limit);
-    return result?.edges?.map((e) => e.node) ?? [];
+    return (result?.edges?.map((e) => e.node) ?? []) as unknown as TransactionRecord[];
+  }
+
+  async getTransaction(userId: UserId, transactionId: string): Promise<TransactionRecord | null> {
+    this.logger.warn(`getTransaction not yet implemented: ${userId.value} -> ${transactionId}`);
+    return null;
+  }
+
+  async getPendingPayments(
+    userId: UserId,
+    direction?: 'sent' | 'received',
+  ): Promise<PendingPayment[]> {
+    this.logger.warn(`getPendingPayments not yet implemented: ${userId.value} -> ${direction}`);
+    return [];
+  }
+
+  async claimPendingPayment(
+    userId: UserId,
+    claimCode: string,
+  ): Promise<{ success: boolean; message: string }> {
+    this.logger.warn(`claimPendingPayment not yet implemented: ${userId.value} -> ${claimCode}`);
+    return { success: false, message: 'Not yet implemented' };
+  }
+
+  async undoLastTransaction(userId: UserId): Promise<UndoResult> {
+    this.logger.warn(`undoLastTransaction not yet implemented: ${userId.value}`);
+    return { success: false, message: 'Not yet implemented' };
   }
 
   async getPrice(currency: string): Promise<unknown> {
