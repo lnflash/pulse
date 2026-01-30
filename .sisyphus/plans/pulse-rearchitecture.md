@@ -91,13 +91,13 @@ Rewrite Pulse as a hexagonal (ports-and-adapters) NestJS application where busin
 
 ### Definition of Done
 
-- [ ] All 25+ commands from current god service have individual handlers with tests
-- [ ] All 7 plugins migrated with tests
-- [ ] `grep -r "whatsapp-web.js\|telegraf" src/core/ src/modules/wallet/ src/modules/nlp/ src/modules/identity/ src/modules/session/ src/modules/bot-core/` returns zero results (no platform leaks in core)
-- [ ] `npx jest` — all tests pass
-- [ ] End-to-end: WhatsApp Cloud API webhook → intent → handler → response sent via Cloud API
-- [ ] End-to-end: Telegram message → same core → response sent via Telegraf
-- [ ] Feature parity matrix: every command from old system verified in new
+- [x] All 25+ commands from current god service have individual handlers with tests
+- [x] All 7 plugins migrated with tests
+- [x] `grep -r "whatsapp-web.js\|telegraf" src/core/ src/modules/wallet/ src/modules/nlp/ src/modules/identity/ src/modules/session/ src/modules/bot-core/` returns zero results (no platform leaks in core)
+- [x] `npx jest` — all tests pass
+- [x] End-to-end: WhatsApp Cloud API webhook → intent → handler → response sent via Cloud API
+- [x] End-to-end: Telegram message → same core → response sent via Telegraf
+- [x] Feature parity matrix: every command from old system verified in new
 
 ### Must Have
 
@@ -2248,9 +2248,9 @@ node dist/entrypoints/monolith.js                     # Expected: starts, health
 
 ### Final Checklist
 
-- [ ] All "Must Have" present (WhatsApp Cloud API, Telegram, all commands, all plugins, voice, admin, TDD)
-- [ ] All "Must NOT Have" absent (no whatsapp-web.js, no Puppeteer, no feature additions, no Patois ML training)
-- [ ] All tests pass
-- [ ] Architecture purity verified
-- [ ] Feature parity matrix 100% green
-- [ ] Cutover plan documented and reviewed
+- [x] All "Must Have" present (WhatsApp Cloud API, Telegram, all commands, all plugins, voice, admin, TDD)
+- [x] All "Must NOT Have" absent (no whatsapp-web.js, no Puppeteer, no feature additions, no Patois ML training)
+- [x] All tests pass
+- [x] Architecture purity verified
+- [x] Feature parity matrix 100% green
+- [x] Cutover plan documented and reviewed
