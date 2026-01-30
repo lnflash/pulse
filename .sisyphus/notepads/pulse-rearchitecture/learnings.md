@@ -871,3 +871,16 @@ await this.messageTransport.publishOutbound(outboundMessage);
 7. **Timing Tests**: Use `toBeGreaterThanOrEqual` for uptime assertions
 8. **ServeStaticModule**: Optional dependency, can be added later for dashboard UI
 
+
+## Task 15: Plugin System Migration
+
+- PluginPort interface: id, name, description, getRecognizers(), execute(), onLoad/onUnload
+- PluginRecognizer: patterns (RegExp[]) + keywords (string[]) for NLP pipeline matching
+- PluginRegistryService uses NestJS DiscoveryService to auto-discover plugins implementing PluginPort
+- matchRecognizer() does two-pass: pattern match (0.9 confidence) then keyword match (0.7 confidence)
+- Plugins use in-memory Maps for state instead of direct Redis (SessionPort injection available for persistent state)
+- EntertainmentPlugin is the only plugin with no @Inject dependencies (pure stateless)
+- All plugins return HandlerResult with FormattedText (platform-agnostic)
+- Legacy plugins had 300-700 lines; migrated versions are 194-366 lines (data arrays like question banks take space)
+- Zero platform imports confirmed across all new plugin code
+- 106 tests across 8 test files (registry + 7 plugins)

@@ -1671,7 +1671,7 @@ import './entrypoints/monolith';
 
 ---
 
-- [ ] 15. Plugin System Migration
+- [x] 15. Plugin System Migration
 
   **What to do**:
   - Design `PluginPort` interface (from Task 4's design) and implement plugin loader
