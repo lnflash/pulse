@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { MessageTransport } from '../../../core/ports/message-transport.port';
-import { MESSAGE_TRANSPORT } from '../../queue/queue.module';
+import { MESSAGE_TRANSPORT } from '../../../core/ports/tokens';
 import { Platform } from '../../../core/types';
 
 describe('AdminDashboardService', () => {

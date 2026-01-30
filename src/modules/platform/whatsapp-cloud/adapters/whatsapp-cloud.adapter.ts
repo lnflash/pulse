@@ -1,6 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MESSAGE_TRANSPORT } from '../../../queue/queue.module';
+import { MESSAGE_TRANSPORT } from '../../../../core/ports/tokens';
 import { MessageTransport } from '../../../../core/ports/message-transport.port';
 import { InboundMessage, OutboundMessage, Platform, ActorId, ChatId } from '../../../../core/types';
 import axios from 'axios';

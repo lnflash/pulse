@@ -6,6 +6,7 @@ import {
   HandlerResult,
 } from '../../../core/ports/plugin.port';
 import { SessionPort } from '../../../core/ports/session.port';
+import { SESSION_PORT } from '../../../core/ports/tokens';
 import { FormattedText } from '../../../core/types/messages';
 import { PluginId } from '../../../core/types/intents';
 import { randomBytes } from 'crypto';
@@ -51,7 +52,7 @@ export class DecisionPlugin implements PluginPort {
   private decisions = new Map<string, Decision>();
   private discussions = new Map<string, ConsensusDiscussion>();
 
-  constructor(@Inject('SessionPort') private readonly session: SessionPort) {}
+  constructor(@Inject(SESSION_PORT) private readonly session: SessionPort) {}
 
   getRecognizers(): PluginRecognizer[] {
     return [

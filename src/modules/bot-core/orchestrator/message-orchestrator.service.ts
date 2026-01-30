@@ -1,20 +1,26 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { InboundMessage, OutboundMessage } from '../../../core/types';
 import { IdentityPort } from '../../../core/ports/identity.port';
 import { SessionPort } from '../../../core/ports/session.port';
 import { IntentClassifierPort } from '../../../core/ports/intent-classifier.port';
 import { MessageTransport } from '../../../core/ports/message-transport.port';
+import {
+  SESSION_PORT,
+  IDENTITY_PORT,
+  NLP_PORT,
+  MESSAGE_TRANSPORT,
+} from '../../../core/ports/tokens';
 import { CommandRouterService } from '../router/command-router.service';
 import { CommandContext } from '../types/command-context';
 
 @Injectable()
 export class MessageOrchestratorService {
   constructor(
-    private readonly identityPort: IdentityPort,
-    private readonly sessionPort: SessionPort,
-    private readonly intentClassifier: IntentClassifierPort,
+    @Inject(IDENTITY_PORT) private readonly identityPort: IdentityPort,
+    @Inject(SESSION_PORT) private readonly sessionPort: SessionPort,
+    @Inject(NLP_PORT) private readonly intentClassifier: IntentClassifierPort,
     private readonly commandRouter: CommandRouterService,
-    private readonly messageTransport: MessageTransport,
+    @Inject(MESSAGE_TRANSPORT) private readonly messageTransport: MessageTransport,
   ) {}
 
   async processMessage(inbound: InboundMessage): Promise<void> {

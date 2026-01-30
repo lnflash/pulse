@@ -5,12 +5,13 @@ import { Intent } from '../../../core/types';
 import { CommandContext } from '../../bot-core/types/command-context';
 import { HandlerResult } from '../../bot-core/types/handler-result';
 import { TemplatePort, PaymentTemplate } from '../../../core/ports/template.port';
+import { TEMPLATE_PORT } from '../../../core/ports/tokens';
 import { FormattedText } from '../../../core/types/messages';
 
 @Injectable()
 @IntentHandler(Intent.ManageTemplate)
 export class TemplateHandler extends CommandHandler {
-  constructor(@Inject('TemplatePort') private readonly templates: TemplatePort) {
+  constructor(@Inject(TEMPLATE_PORT) private readonly templates: TemplatePort) {
     super();
   }
 

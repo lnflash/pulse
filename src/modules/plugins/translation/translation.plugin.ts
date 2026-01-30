@@ -6,6 +6,7 @@ import {
   HandlerResult,
 } from '../../../core/ports/plugin.port';
 import { SessionPort } from '../../../core/ports/session.port';
+import { SESSION_PORT } from '../../../core/ports/tokens';
 import { FormattedText } from '../../../core/types/messages';
 import { PluginId } from '../../../core/types/intents';
 
@@ -104,7 +105,7 @@ export class TranslationPlugin implements PluginPort {
 
   private autoTranslateGroups = new Set<string>();
 
-  constructor(@Inject('SessionPort') private readonly session: SessionPort) {}
+  constructor(@Inject(SESSION_PORT) private readonly session: SessionPort) {}
 
   getRecognizers(): PluginRecognizer[] {
     return [

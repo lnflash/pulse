@@ -5,12 +5,13 @@ import { Intent } from '../../../core/types';
 import { CommandContext } from '../../bot-core/types/command-context';
 import { HandlerResult } from '../../bot-core/types/handler-result';
 import { SessionPort } from '../../../core/ports/session.port';
+import { SESSION_PORT } from '../../../core/ports/tokens';
 import { FormattedText } from '../../../core/types/messages';
 
 @Injectable()
 @IntentHandler(Intent.SkipOnboarding)
 export class SkipOnboardingHandler extends CommandHandler {
-  constructor(@Inject('SessionPort') private readonly session: SessionPort) {
+  constructor(@Inject(SESSION_PORT) private readonly session: SessionPort) {
     super();
   }
 

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { SessionModule } from '../session/session.module';
 import { FlashApiClient } from './flash-api.client';
 import { BalanceService } from './services/balance.service';
 import { PaymentService } from './services/payment.service';
@@ -10,7 +11,7 @@ import { UserService } from './services/user.service';
 import { WalletFacade } from './wallet.facade';
 
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, SessionModule],
   providers: [
     FlashApiClient,
     BalanceService,

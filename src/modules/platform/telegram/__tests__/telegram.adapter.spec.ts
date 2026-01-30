@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { TelegramAdapter } from '../adapters/telegram.adapter';
-import { MESSAGE_TRANSPORT } from '../../../queue/queue.module';
+import { MESSAGE_TRANSPORT } from '../../../../core/ports/tokens';
 import { Platform } from '../../../../core/types';
 import axios from 'axios';
 

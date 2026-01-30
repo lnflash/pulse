@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DiscoveryModule } from '@nestjs/core';
+import { SESSION_PORT } from '../../core/ports/tokens';
 import { PluginRegistryService } from './services/plugin-registry.service';
 import { TriviaPlugin } from './trivia/trivia.plugin';
 import { DailyChallengePlugin } from './daily-challenge/daily-challenge.plugin';
@@ -10,7 +11,7 @@ import { TranslationPlugin } from './translation/translation.plugin';
 import { EntertainmentPlugin } from './entertainment/entertainment.plugin';
 
 const SESSION_PORT_PROVIDER = {
-  provide: 'SessionPort',
+  provide: SESSION_PORT,
   useFactory: () => ({
     getSession: async () => null,
     getOrCreateSession: async (userId: string) => ({ userId, lastActivity: new Date() }),

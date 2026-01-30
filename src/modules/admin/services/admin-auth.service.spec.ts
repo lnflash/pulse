@@ -5,7 +5,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { AdminAuthService } from './admin-auth.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { MessageTransport } from '../../../core/ports/message-transport.port';
-import { MESSAGE_TRANSPORT } from '../../queue/queue.module';
+import { MESSAGE_TRANSPORT } from '../../../core/ports/tokens';
 
 describe('AdminAuthService', () => {
   let service: AdminAuthService;

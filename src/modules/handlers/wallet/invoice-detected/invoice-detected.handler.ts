@@ -5,13 +5,14 @@ import { Intent } from '../../../../core/types';
 import { CommandContext } from '../../../bot-core/types/command-context';
 import { HandlerResult } from '../../../bot-core/types/handler-result';
 import { WalletPort } from '../../../../core/ports/wallet.port';
+import { WALLET_PORT } from '../../../../core/ports/tokens';
 
 const LIGHTNING_INVOICE_PATTERN = /\b(lnbc[a-z0-9]+)\b/i;
 
 @Injectable()
 @IntentHandler(Intent.InvoiceDetected)
 export class InvoiceDetectedHandler extends CommandHandler {
-  constructor(@Inject('WalletPort') private readonly wallet: WalletPort) {
+  constructor(@Inject(WALLET_PORT) private readonly wallet: WalletPort) {
     super();
   }
 

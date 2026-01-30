@@ -5,11 +5,12 @@ import { Intent } from '../../../../core/types';
 import { CommandContext } from '../../../bot-core/types/command-context';
 import { HandlerResult } from '../../../bot-core/types/handler-result';
 import { SessionPort } from '../../../../core/ports/session.port';
+import { SESSION_PORT } from '../../../../core/ports/tokens';
 
 @Injectable()
 @IntentHandler(Intent.LinkAccount)
 export class LinkHandler extends CommandHandler {
-  constructor(@Inject('SessionPort') private readonly sessionPort: SessionPort) {
+  constructor(@Inject(SESSION_PORT) private readonly sessionPort: SessionPort) {
     super();
   }
 

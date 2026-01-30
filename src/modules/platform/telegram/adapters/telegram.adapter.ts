@@ -4,7 +4,7 @@ import { Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { Message, Update } from 'telegraf/types';
 import axios from 'axios';
-import { MESSAGE_TRANSPORT } from '../../../queue/queue.module';
+import { MESSAGE_TRANSPORT } from '../../../../core/ports/tokens';
 import { MessageTransport } from '../../../../core/ports/message-transport.port';
 import {
   InboundMessage,

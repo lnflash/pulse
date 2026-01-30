@@ -5,12 +5,13 @@ import { Intent } from '../../../core/types';
 import { CommandContext } from '../../bot-core/types/command-context';
 import { HandlerResult } from '../../bot-core/types/handler-result';
 import { WalletPort } from '../../../core/ports/wallet.port';
+import { WALLET_PORT } from '../../../core/ports/tokens';
 import { FormattedText } from '../../../core/types/messages';
 
 @Injectable()
 @IntentHandler(Intent.UndoTransaction)
 export class UndoHandler extends CommandHandler {
-  constructor(@Inject('WalletPort') private readonly wallet: WalletPort) {
+  constructor(@Inject(WALLET_PORT) private readonly wallet: WalletPort) {
     super();
   }
 

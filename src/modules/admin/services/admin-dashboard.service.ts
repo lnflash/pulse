@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { RedisService } from '../../../common/redis/redis.service';
-import { MESSAGE_TRANSPORT } from '../../queue/queue.module';
+import { MESSAGE_TRANSPORT } from '../../../core/ports/tokens';
 import { MessageTransport } from '../../../core/ports/message-transport.port';
 import {
   OutboundMessage,

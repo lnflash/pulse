@@ -1,7 +1,6 @@
 import { Module, Global } from '@nestjs/common';
+import { MESSAGE_TRANSPORT } from '../../core/ports/tokens';
 import { InProcessTransport } from './transports/in-process.transport';
-
-export const MESSAGE_TRANSPORT = 'MESSAGE_TRANSPORT';
 
 @Global()
 @Module({

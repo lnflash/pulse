@@ -5,12 +5,13 @@ import { Intent } from '../../../core/types';
 import { CommandContext } from '../../bot-core/types/command-context';
 import { HandlerResult } from '../../bot-core/types/handler-result';
 import { VoicePort } from '../../../core/ports/voice.port';
+import { VOICE_PORT } from '../../../core/ports/tokens';
 import { FormattedText } from '../../../core/types/messages';
 
 @Injectable()
 @IntentHandler(Intent.ManageVoice)
 export class VoiceHandler extends CommandHandler {
-  constructor(@Inject('VoicePort') private readonly voice: VoicePort) {
+  constructor(@Inject(VOICE_PORT) private readonly voice: VoicePort) {
     super();
   }
 

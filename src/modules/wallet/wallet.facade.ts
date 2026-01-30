@@ -14,13 +14,12 @@ import {
   ConfirmPaymentResult,
 } from '../../core/ports/wallet.port';
 import { SessionPort } from '../../core/ports/session.port';
+import { SESSION_PORT } from '../../core/ports/tokens';
 import { BalanceService } from './services/balance.service';
 import { PaymentService } from './services/payment.service';
 import { InvoiceService } from './services/invoice.service';
 import { TransactionService } from './services/transaction.service';
 import { PriceService } from './services/price.service';
-
-export const SESSION_PORT = Symbol('SessionPort');
 
 @Injectable()
 export class WalletFacade implements WalletPort {
