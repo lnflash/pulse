@@ -9,6 +9,9 @@ import {
   Contact,
   ContactHistoryEntry,
   PaymentRequest,
+  PayInvoiceResult,
+  DecodedInvoice,
+  ConfirmPaymentResult,
 } from '../../core/ports/wallet.port';
 import { SessionPort } from '../../core/ports/session.port';
 import { BalanceService } from './services/balance.service';
@@ -149,6 +152,38 @@ export class WalletFacade implements WalletPort {
       status: 'pending',
       createdAt: new Date(),
     };
+  }
+
+  async payInvoice(userId: UserId, invoice: string): Promise<PayInvoiceResult> {
+    this.logger.warn(
+      `payInvoice not yet implemented: ${userId.value} -> ${invoice.substring(0, 20)}...`,
+    );
+    return { success: false, message: 'Not yet implemented' };
+  }
+
+  async decodeInvoice(userId: UserId, invoice: string): Promise<DecodedInvoice> {
+    this.logger.warn(
+      `decodeInvoice not yet implemented: ${userId.value} -> ${invoice.substring(0, 20)}...`,
+    );
+    return {
+      paymentHash: '',
+      amount: 0,
+      currency: 'sats',
+      destination: '',
+      expiresAt: new Date(),
+      isExpired: true,
+    };
+  }
+
+  async confirmPendingPayment(
+    userId: UserId,
+    paymentId: string,
+    action: 'confirm' | 'cancel',
+  ): Promise<ConfirmPaymentResult> {
+    this.logger.warn(
+      `confirmPendingPayment not yet implemented: ${userId.value} -> ${paymentId} ${action}`,
+    );
+    return { success: false, message: 'Not yet implemented' };
   }
 
   private async getAuthToken(userId: UserId): Promise<string> {

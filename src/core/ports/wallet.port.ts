@@ -58,6 +58,30 @@ export interface PaymentRequest {
   createdAt: Date;
 }
 
+export interface DecodedInvoice {
+  paymentHash: string;
+  amount: number;
+  currency: string;
+  memo?: string;
+  destination: string;
+  expiresAt: Date;
+  isExpired: boolean;
+}
+
+export interface PayInvoiceResult {
+  success: boolean;
+  preimage?: string;
+  paymentHash?: string;
+  feeSats?: number;
+  message: string;
+}
+
+export interface ConfirmPaymentResult {
+  success: boolean;
+  message: string;
+  transactionId?: string;
+}
+
 export interface UndoResult {
   success: boolean;
   message: string;
@@ -86,6 +110,15 @@ export interface WalletPort {
   addContact(userId: UserId, name: string, phone?: string, username?: string): Promise<Contact>;
   removeContact(userId: UserId, name: string): Promise<boolean>;
   getContactHistory(userId: UserId, contactName: string): Promise<ContactHistoryEntry[]>;
+
+  // Invoice / Pay
+  payInvoice(userId: UserId, invoice: string): Promise<PayInvoiceResult>;
+  decodeInvoice(userId: UserId, invoice: string): Promise<DecodedInvoice>;
+  confirmPendingPayment(
+    userId: UserId,
+    paymentId: string,
+    action: 'confirm' | 'cancel',
+  ): Promise<ConfirmPaymentResult>;
 
   // Payment Requests
   requestPayment(
