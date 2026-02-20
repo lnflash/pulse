@@ -6,11 +6,16 @@
  *     → RateLimiter (block if throttled)
  *     → InputSanitizer (clean + flag injections)
  *     → ContextManager.load() (hydrate UserContext)
- *     → AgentOrchestrator.handle() (run AgentLoop)
+ *     → DialectClassifier / DialectNormalizer
+ *     → PromptLoader.compose()
+ *     → AgentOrchestrator.handle()
  *     → MessagingPort.sendText() (reply)
- *     → ContextManager.save() (persist updated context)
+ *     → ContextManager.save()
+ *     → InteractionLogStore.append() (always, in finally)
  *
  * All external dependencies are mocked.
+ * Note: resetMocks: true is set in jest.config.ts, so all mock implementations
+ * must be re-applied in beforeEach (not just in jest.mock factories).
  */
 
 // ---------------------------------------------------------------------------
@@ -26,12 +31,12 @@ jest.mock('../../src/config/logger', () => ({
   },
 }));
 
-// Mock the eventBus singleton
+// Mock the eventBus singleton (named export)
 const mockEventBusEmit = jest.fn();
 jest.mock('../../src/orchestrator/EventBus', () => ({
   EventBus: jest.fn(),
   eventBus: {
-    emit: mockEventBusEmit,
+    emit: (...args: unknown[]) => mockEventBusEmit(...args),
     on: jest.fn(),
     off: jest.fn(),
     once: jest.fn(),
@@ -39,25 +44,33 @@ jest.mock('../../src/orchestrator/EventBus', () => ({
   },
 }));
 
-// Mock ContextManager — only need the static hashPhone method
-jest.mock('../../src/core/context/ContextManager', () => ({
-  ContextManager: {
-    hashPhone: jest.fn((phone: string) => `sha256:${phone}`),
-  },
-}));
+// Auto-mock DialectClassifier and DialectNormalizer
+// (resetMocks: true will wipe implementations, so we re-apply in beforeEach)
+jest.mock('../../src/core/dialect/DialectClassifier');
+jest.mock('../../src/core/dialect/DialectNormalizer');
 
 // ---------------------------------------------------------------------------
 // Imports
 // ---------------------------------------------------------------------------
 
 import { MessageOrchestrator } from '../../src/orchestrator/MessageOrchestrator';
+import { DialectClassifier } from '../../src/core/dialect/DialectClassifier';
+import { DialectNormalizer } from '../../src/core/dialect/DialectNormalizer';
 import { createDefaultContext } from '../../src/core/context/UserContext';
-import type { IncomingMessage, MessagingPort } from '../../src/ports/MessagingPort';
+import type {
+  IncomingMessage,
+  MessagingPort,
+} from '../../src/ports/MessagingPort';
 import type { ContextManager } from '../../src/core/context/ContextManager';
 import type { RateLimiter, RateLimitResult } from '../../src/core/security/RateLimiter';
 import type { InputSanitizer, SanitizeResult } from '../../src/core/security/InputSanitizer';
 import type { AuditLog } from '../../src/core/security/AuditLog';
 import type { AgentOrchestrator, AgentHandleResult } from '../../src/orchestrator/AgentOrchestrator';
+import type { PromptLoader } from '../../src/config/PromptLoader';
+import type { InteractionLogStore } from '../../src/core/context/InteractionLogStore';
+
+const MockedDialectClassifier = DialectClassifier as jest.MockedClass<typeof DialectClassifier>;
+const MockedDialectNormalizer = DialectNormalizer as jest.MockedClass<typeof DialectNormalizer>;
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -76,7 +89,9 @@ function makeIncomingMessage(overrides: Partial<IncomingMessage> = {}): Incoming
   };
 }
 
-const defaultUserContext = createDefaultContext('sha256:+18765551234');
+const defaultUserContext = createDefaultContext('hash-sha256', {
+  identity: { phoneHash: 'hash-sha256', phoneNumber: '+18765551234' },
+});
 
 const defaultRateLimitAllowed: RateLimitResult = {
   allowed: true,
@@ -167,33 +182,57 @@ function makeMockAgentOrchestrator(): jest.Mocked<AgentOrchestrator> {
   } as unknown as jest.Mocked<AgentOrchestrator>;
 }
 
+function makeMockPromptLoader(): jest.Mocked<PromptLoader> {
+  return {
+    load: jest.fn().mockResolvedValue('You are Pulse, a financial assistant.'),
+    compose: jest.fn().mockResolvedValue('Composed system prompt for Pulse.'),
+  } as unknown as jest.Mocked<PromptLoader>;
+}
+
+function makeMockLogStore(): jest.Mocked<InteractionLogStore> {
+  return {
+    init: jest.fn().mockResolvedValue(undefined),
+    append: jest.fn().mockResolvedValue({ id: 'log-001', timestamp: new Date() }),
+    getLast: jest.fn().mockResolvedValue([]),
+    toConversationHistory: jest.fn().mockResolvedValue([]),
+  } as unknown as jest.Mocked<InteractionLogStore>;
+}
+
 // ---------------------------------------------------------------------------
 // Helper to build a MessageOrchestrator with all mocks
 // ---------------------------------------------------------------------------
 
-function buildOrchestrator(overrides: {
+interface OverrideMap {
   messaging?: jest.Mocked<MessagingPort>;
   contextManager?: jest.Mocked<ContextManager>;
   rateLimiter?: jest.Mocked<RateLimiter>;
   sanitizer?: jest.Mocked<InputSanitizer>;
   auditLog?: jest.Mocked<AuditLog>;
   agentOrchestrator?: jest.Mocked<AgentOrchestrator>;
-} = {}) {
+  promptLoader?: jest.Mocked<PromptLoader>;
+  logStore?: jest.Mocked<InteractionLogStore>;
+}
+
+function buildOrchestrator(overrides: OverrideMap = {}) {
   const messaging = overrides.messaging ?? makeMockMessaging();
   const contextManager = overrides.contextManager ?? makeMockContextManager();
   const rateLimiter = overrides.rateLimiter ?? makeMockRateLimiter();
   const sanitizer = overrides.sanitizer ?? makeMockSanitizer();
   const auditLog = overrides.auditLog ?? makeMockAuditLog();
   const agentOrchestrator = overrides.agentOrchestrator ?? makeMockAgentOrchestrator();
+  const promptLoader = overrides.promptLoader ?? makeMockPromptLoader();
+  const logStore = overrides.logStore ?? makeMockLogStore();
 
-  const orchestrator = new MessageOrchestrator(
+  const orchestrator = new MessageOrchestrator({
     messaging,
     contextManager,
     rateLimiter,
     sanitizer,
     auditLog,
     agentOrchestrator,
-  );
+    promptLoader,
+    logStore,
+  });
 
   return {
     orchestrator,
@@ -203,6 +242,8 @@ function buildOrchestrator(overrides: {
     sanitizer,
     auditLog,
     agentOrchestrator,
+    promptLoader,
+    logStore,
   };
 }
 
@@ -211,8 +252,39 @@ function buildOrchestrator(overrides: {
 // ---------------------------------------------------------------------------
 
 describe('MessageOrchestrator', () => {
+  /**
+   * Re-apply DialectClassifier/DialectNormalizer implementations before each test.
+   * resetMocks: true in jest.config.ts clears implementations between tests,
+   * so we must re-apply them here to keep the pipeline running smoothly.
+   */
   beforeEach(() => {
-    jest.clearAllMocks();
+    MockedDialectClassifier.mockImplementation(
+      () =>
+        ({
+          classify: jest.fn().mockReturnValue({
+            dialect: 'standard-english',
+            confidence: 0.05,
+            language: 'en',
+          }),
+          reset: jest.fn(),
+          getAccumulatedScores: jest.fn().mockReturnValue({}),
+        }) as unknown as DialectClassifier,
+    );
+
+    MockedDialectNormalizer.mockImplementation(
+      () =>
+        ({
+          normalize: jest.fn().mockReturnValue({
+            normalized: '',
+            original: '',
+            wasNormalized: false,
+            substitutions: 0,
+          }),
+        }) as unknown as DialectNormalizer,
+    );
+
+    // Re-apply eventBus emit mock (cleared by clearMocks)
+    mockEventBusEmit.mockReset();
   });
 
   // --------------------------------------------------------------------------
@@ -226,11 +298,10 @@ describe('MessageOrchestrator', () => {
       expect(messaging.onMessage).toHaveBeenCalledWith(expect.any(Function));
     });
 
-    it('registers a handler that calls handleMessage', async () => {
+    it('registers a handler that calls handleMessage when invoked', async () => {
       const { orchestrator, messaging, agentOrchestrator } = buildOrchestrator();
       orchestrator.register();
 
-      // Extract the registered handler
       const handler = (messaging.onMessage as jest.Mock).mock.calls[0][0] as (
         msg: IncomingMessage,
       ) => Promise<void>;
@@ -245,58 +316,51 @@ describe('MessageOrchestrator', () => {
   // Full pipeline — happy path
   // --------------------------------------------------------------------------
   describe('handleMessage() — happy path', () => {
-    it('runs the full pipeline: rate check → sanitize → context → agent → send → save', async () => {
-      const { orchestrator, messaging, contextManager, rateLimiter, sanitizer, agentOrchestrator } =
-        buildOrchestrator();
+    it('runs the full pipeline: rate check → sanitize → context → agent → send → save → log', async () => {
+      const {
+        orchestrator,
+        messaging,
+        contextManager,
+        rateLimiter,
+        sanitizer,
+        agentOrchestrator,
+        logStore,
+      } = buildOrchestrator();
 
       await orchestrator.handleMessage(makeIncomingMessage({ text: 'Check my balance' }));
 
-      // Step 1: rate limit
       expect(rateLimiter.check).toHaveBeenCalledTimes(1);
-
-      // Step 2: sanitize
       expect(sanitizer.sanitize).toHaveBeenCalledWith('Check my balance');
-
-      // Step 3: context load
       expect(contextManager.load).toHaveBeenCalledWith('+18765551234');
-
-      // Step 4: typing indicator
       expect(messaging.sendTypingIndicator).toHaveBeenCalledWith('+18765551234');
-
-      // Step 5: agent
       expect(agentOrchestrator.handle).toHaveBeenCalledTimes(1);
-
-      // Step 6: send reply
       expect(messaging.sendText).toHaveBeenCalledWith(
         '+18765551234',
         'Your balance is 50,000 sats 💰',
       );
-
-      // Step 7: persist context
       expect(contextManager.save).toHaveBeenCalledTimes(1);
+      expect(logStore.append).toHaveBeenCalledTimes(1);
     });
 
-    it('passes the sanitized text (not original) to AgentOrchestrator', async () => {
+    it('passes the sanitized text (not raw original) to AgentOrchestrator', async () => {
       const sanitizer = makeMockSanitizer();
       sanitizer.sanitize.mockReturnValue({
-        sanitized: 'clean version of message',
-        original: 'DIRTY version of message',
+        sanitized: 'clean-version',
+        original: 'DIRTY-VERSION',
         wasModified: true,
         flagged: false,
       });
 
       const { orchestrator, agentOrchestrator } = buildOrchestrator({ sanitizer });
 
-      await orchestrator.handleMessage(
-        makeIncomingMessage({ text: 'DIRTY version of message' }),
-      );
+      await orchestrator.handleMessage(makeIncomingMessage({ text: 'DIRTY-VERSION' }));
 
-      const handleCall = agentOrchestrator.handle.mock.calls[0][0];
-      expect(handleCall.message.text).toBe('clean version of message');
+      const handleArg = agentOrchestrator.handle.mock.calls[0][0];
+      expect(handleArg.message.text).toBe('clean-version');
     });
 
     it('persists updatedContext after agent execution', async () => {
-      const updatedCtx = createDefaultContext('sha256:+18765551234');
+      const updatedCtx = createDefaultContext('hash-updated');
       const agentOrchestrator = makeMockAgentOrchestrator();
       agentOrchestrator.handle.mockResolvedValue({
         ...defaultAgentResult,
@@ -340,10 +404,7 @@ describe('MessageOrchestrator', () => {
 
       expect(mockEventBusEmit).toHaveBeenCalledWith(
         'agent.loop.complete',
-        expect.objectContaining({
-          durationMs: 300,
-          tokensUsed: 150,
-        }),
+        expect.objectContaining({ durationMs: 300, tokensUsed: 150 }),
       );
     });
 
@@ -357,13 +418,53 @@ describe('MessageOrchestrator', () => {
         expect.objectContaining({ phoneNumber: '+18765551234' }),
       );
     });
+
+    it('loads conversation history from logStore and passes to agent', async () => {
+      const history = [
+        { role: 'user' as const, content: 'Prior question' },
+        { role: 'assistant' as const, content: 'Prior answer' },
+      ];
+      const logStore = makeMockLogStore();
+      logStore.toConversationHistory.mockResolvedValue(history);
+
+      const { orchestrator, agentOrchestrator } = buildOrchestrator({ logStore });
+
+      await orchestrator.handleMessage(makeIncomingMessage());
+
+      const handleArg = agentOrchestrator.handle.mock.calls[0][0];
+      expect(handleArg.conversationHistory).toEqual(history);
+    });
+
+    it('passes the composed system prompt to the agent', async () => {
+      const promptLoader = makeMockPromptLoader();
+      promptLoader.compose.mockResolvedValue('Custom composed prompt.');
+
+      const { orchestrator, agentOrchestrator } = buildOrchestrator({ promptLoader });
+
+      await orchestrator.handleMessage(makeIncomingMessage());
+
+      const handleArg = agentOrchestrator.handle.mock.calls[0][0];
+      expect(handleArg.systemPrompt).toBe('Custom composed prompt.');
+    });
+
+    it('uses fallback prompt when promptLoader.compose throws', async () => {
+      const promptLoader = makeMockPromptLoader();
+      promptLoader.compose.mockRejectedValue(new Error('Prompt not found'));
+
+      const { orchestrator, agentOrchestrator } = buildOrchestrator({ promptLoader });
+
+      await orchestrator.handleMessage(makeIncomingMessage());
+
+      const handleArg = agentOrchestrator.handle.mock.calls[0][0];
+      expect(handleArg.systemPrompt).toContain('Pulse');
+    });
   });
 
   // --------------------------------------------------------------------------
   // Rate limiting
   // --------------------------------------------------------------------------
   describe('handleMessage() — rate limiting', () => {
-    it('blocks the message and sends rate limit message when throttled', async () => {
+    it('blocks message and sends rate-limit reply when throttled', async () => {
       const rateLimiter = makeMockRateLimiter();
       rateLimiter.check.mockReturnValue(defaultRateLimitBlocked);
 
@@ -373,16 +474,11 @@ describe('MessageOrchestrator', () => {
 
       await orchestrator.handleMessage(makeIncomingMessage());
 
-      // Should send the rate limit message
       expect(messaging.sendText).toHaveBeenCalledWith(
         '+18765551234',
         "You're sending messages too quickly. Please wait a moment.",
       );
-
-      // Should NOT proceed to agent
       expect(agentOrchestrator.handle).not.toHaveBeenCalled();
-
-      // Should NOT save context
       expect(contextManager.save).not.toHaveBeenCalled();
     });
 
@@ -463,12 +559,12 @@ describe('MessageOrchestrator', () => {
       );
     });
 
-    it('still processes the message even when it was flagged', async () => {
+    it('still processes the message even when flagged (AI system prompt guards it)', async () => {
       const sanitizer = makeMockSanitizer();
       sanitizer.sanitize.mockReturnValue({
-        sanitized: 'flagged but processed',
+        sanitized: 'flagged content',
         original: 'flagged content',
-        wasModified: true,
+        wasModified: false,
         flagged: true,
         flagReason: 'Potential prompt injection attempt detected',
       });
@@ -477,11 +573,10 @@ describe('MessageOrchestrator', () => {
 
       await orchestrator.handleMessage(makeIncomingMessage({ text: 'flagged content' }));
 
-      // Agent still runs — the AI's system prompt provides the primary guard
       expect(agentOrchestrator.handle).toHaveBeenCalledTimes(1);
     });
 
-    it('skips sanitization for voice-only messages (no text)', async () => {
+    it('skips sanitization for voice-only messages', async () => {
       const sanitizer = makeMockSanitizer();
       const { orchestrator } = buildOrchestrator({ sanitizer });
 
@@ -497,7 +592,7 @@ describe('MessageOrchestrator', () => {
   // Voice messages
   // --------------------------------------------------------------------------
   describe('handleMessage() — voice messages', () => {
-    it('processes voice messages through the full pipeline', async () => {
+    it('processes voice messages through the full pipeline (no STT provider)', async () => {
       const voiceMsg = makeIncomingMessage({ voice: Buffer.from('ogg-data'), text: undefined });
       const { orchestrator, agentOrchestrator } = buildOrchestrator();
 
@@ -506,6 +601,16 @@ describe('MessageOrchestrator', () => {
       expect(agentOrchestrator.handle).toHaveBeenCalledTimes(1);
       const handleArg = agentOrchestrator.handle.mock.calls[0][0];
       expect(handleArg.message.voice).toBeInstanceOf(Buffer);
+    });
+
+    it('passes a voice-unavailable placeholder when no STT provider is configured', async () => {
+      const voiceMsg = makeIncomingMessage({ voice: Buffer.from('audio'), text: undefined });
+      const { orchestrator, agentOrchestrator } = buildOrchestrator();
+
+      await orchestrator.handleMessage(voiceMsg);
+
+      const handleArg = agentOrchestrator.handle.mock.calls[0][0];
+      expect(handleArg.message.text).toContain('[Voice');
     });
   });
 
@@ -521,23 +626,23 @@ describe('MessageOrchestrator', () => {
       expect(contextManager.load).toHaveBeenCalledWith('+19175557890');
     });
 
-    it('does not save context if updatedContext is undefined', async () => {
-      const agentOrchestrator = makeMockAgentOrchestrator();
-      agentOrchestrator.handle.mockResolvedValue({
-        ...defaultAgentResult,
-        updatedContext: undefined as unknown as ReturnType<typeof createDefaultContext>,
-      });
+    it('creates a default context when contextManager.load fails', async () => {
+      const contextManager = makeMockContextManager();
+      contextManager.load.mockRejectedValue(new Error('DB error'));
 
-      const { orchestrator, contextManager } = buildOrchestrator({ agentOrchestrator });
+      const { orchestrator, agentOrchestrator } = buildOrchestrator({ contextManager });
 
-      // Set updatedContext to undefined to test the conditional save
-      const mockResult = { ...defaultAgentResult };
-      Object.defineProperty(mockResult, 'updatedContext', { value: undefined });
-      agentOrchestrator.handle.mockResolvedValueOnce(mockResult);
+      await expect(orchestrator.handleMessage(makeIncomingMessage())).resolves.toBeUndefined();
+      expect(agentOrchestrator.handle).toHaveBeenCalledTimes(1);
+    });
 
-      await orchestrator.handleMessage(makeIncomingMessage());
+    it('does not throw when contextManager.save fails', async () => {
+      const contextManager = makeMockContextManager();
+      contextManager.save.mockRejectedValue(new Error('Write failed'));
 
-      expect(contextManager.save).not.toHaveBeenCalled();
+      const { orchestrator } = buildOrchestrator({ contextManager });
+
+      await expect(orchestrator.handleMessage(makeIncomingMessage())).resolves.toBeUndefined();
     });
   });
 
@@ -553,7 +658,7 @@ describe('MessageOrchestrator', () => {
       expect(messaging.sendTypingIndicator).toHaveBeenCalledWith('+18765551234');
     });
 
-    it('continues even if typing indicator throws', async () => {
+    it('continues pipeline even if typing indicator throws', async () => {
       const messaging = makeMockMessaging();
       messaging.sendTypingIndicator.mockRejectedValue(new Error('Platform error'));
 
@@ -561,8 +666,61 @@ describe('MessageOrchestrator', () => {
 
       await orchestrator.handleMessage(makeIncomingMessage());
 
-      // Agent still runs despite typing indicator failure
       expect(agentOrchestrator.handle).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // InteractionLogStore
+  // --------------------------------------------------------------------------
+  describe('handleMessage() — interaction log', () => {
+    it('always calls logStore.append() on success', async () => {
+      const logStore = makeMockLogStore();
+      const { orchestrator } = buildOrchestrator({ logStore });
+
+      await orchestrator.handleMessage(makeIncomingMessage());
+
+      expect(logStore.append).toHaveBeenCalledTimes(1);
+      expect(logStore.append).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phoneHash: expect.any(String),
+          agentResponse: expect.any(String),
+          durationMs: expect.any(Number),
+        }),
+      );
+    });
+
+    it('always calls logStore.append() even when agent throws', async () => {
+      const agentOrchestrator = makeMockAgentOrchestrator();
+      agentOrchestrator.handle.mockRejectedValue(new Error('Agent crashed'));
+
+      const logStore = makeMockLogStore();
+      const { orchestrator } = buildOrchestrator({ agentOrchestrator, logStore });
+
+      await orchestrator.handleMessage(makeIncomingMessage());
+
+      expect(logStore.append).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not throw when logStore.append fails', async () => {
+      const logStore = makeMockLogStore();
+      logStore.append.mockRejectedValue(new Error('Disk full'));
+
+      const { orchestrator } = buildOrchestrator({ logStore });
+
+      await expect(orchestrator.handleMessage(makeIncomingMessage())).resolves.toBeUndefined();
+    });
+
+    it('fetches conversation history via toConversationHistory', async () => {
+      const logStore = makeMockLogStore();
+      const { orchestrator } = buildOrchestrator({ logStore });
+
+      await orchestrator.handleMessage(makeIncomingMessage());
+
+      expect(logStore.toConversationHistory).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Number),
+      );
     });
   });
 
@@ -570,9 +728,9 @@ describe('MessageOrchestrator', () => {
   // Error handling
   // --------------------------------------------------------------------------
   describe('handleMessage() — error handling', () => {
-    it('sends a graceful error message when an unexpected error occurs', async () => {
+    it('sends a graceful error message when agent throws', async () => {
       const agentOrchestrator = makeMockAgentOrchestrator();
-      agentOrchestrator.handle.mockRejectedValue(new Error('Unhandled AI failure'));
+      agentOrchestrator.handle.mockRejectedValue(new Error('Catastrophic failure'));
 
       const { orchestrator, messaging } = buildOrchestrator({ agentOrchestrator });
 
@@ -580,21 +738,25 @@ describe('MessageOrchestrator', () => {
 
       expect(messaging.sendText).toHaveBeenCalledWith(
         '+18765551234',
-        expect.stringContaining('unexpected error'),
+        expect.stringContaining('trouble'),
       );
     });
 
-    it('does not throw when contextManager.load rejects', async () => {
-      const contextManager = makeMockContextManager();
-      contextManager.load.mockRejectedValue(new Error('DB connection failed'));
+    it('emits agent.loop.error when an unexpected error occurs', async () => {
+      const agentOrchestrator = makeMockAgentOrchestrator();
+      agentOrchestrator.handle.mockRejectedValue(new Error('Critical failure'));
 
-      const { orchestrator } = buildOrchestrator({ contextManager });
+      const { orchestrator } = buildOrchestrator({ agentOrchestrator });
 
-      // Should not throw — graceful error handling
-      await expect(orchestrator.handleMessage(makeIncomingMessage())).resolves.toBeUndefined();
+      await orchestrator.handleMessage(makeIncomingMessage());
+
+      expect(mockEventBusEmit).toHaveBeenCalledWith(
+        'agent.loop.error',
+        expect.objectContaining({ error: expect.any(String), requestId: expect.any(String) }),
+      );
     });
 
-    it('does not throw when messaging.sendText rejects (graceful degradation)', async () => {
+    it('does not throw even when both agent and sendText fail', async () => {
       const messaging = makeMockMessaging();
       messaging.sendText.mockRejectedValue(new Error('WhatsApp API down'));
 
@@ -603,17 +765,16 @@ describe('MessageOrchestrator', () => {
 
       const { orchestrator } = buildOrchestrator({ messaging, agentOrchestrator });
 
-      // Even if both agent and sendText fail, no unhandled promise rejection
       await expect(orchestrator.handleMessage(makeIncomingMessage())).resolves.toBeUndefined();
     });
   });
 
   // --------------------------------------------------------------------------
-  // AgentOrchestrator receives correct input
+  // AgentOrchestrator input
   // --------------------------------------------------------------------------
   describe('AgentOrchestrator input', () => {
     it('passes user context to AgentOrchestrator', async () => {
-      const loadedCtx = createDefaultContext('sha256:custom-hash');
+      const loadedCtx = createDefaultContext('custom-hash-123');
       const contextManager = makeMockContextManager();
       contextManager.load.mockResolvedValue(loadedCtx);
 
@@ -622,7 +783,7 @@ describe('MessageOrchestrator', () => {
       await orchestrator.handleMessage(makeIncomingMessage());
 
       const handleArg = agentOrchestrator.handle.mock.calls[0][0];
-      expect(handleArg.userContext).toEqual(loadedCtx);
+      expect(handleArg.userContext.identity.phoneHash).toBe('custom-hash-123');
     });
 
     it('generates a unique requestId for each message', async () => {
@@ -631,12 +792,25 @@ describe('MessageOrchestrator', () => {
       await orchestrator.handleMessage(makeIncomingMessage());
       await orchestrator.handleMessage(makeIncomingMessage());
 
-      const requestId1 = agentOrchestrator.handle.mock.calls[0][0].requestId;
-      const requestId2 = agentOrchestrator.handle.mock.calls[1][0].requestId;
+      const id1 = agentOrchestrator.handle.mock.calls[0][0].requestId;
+      const id2 = agentOrchestrator.handle.mock.calls[1][0].requestId;
 
-      expect(requestId1).not.toBe(requestId2);
-      expect(typeof requestId1).toBe('string');
-      expect(requestId1.length).toBeGreaterThan(10);
+      expect(id1).not.toBe(id2);
+      expect(typeof id1).toBe('string');
+      expect(id1.length).toBeGreaterThan(10);
+    });
+
+    it('produces a consistent SHA-256 phone hash for rate limiting', async () => {
+      const { orchestrator, rateLimiter } = buildOrchestrator();
+
+      await orchestrator.handleMessage(makeIncomingMessage({ from: '+18765551234' }));
+      await orchestrator.handleMessage(makeIncomingMessage({ from: '+18765551234' }));
+
+      const hash1 = (rateLimiter.check as jest.Mock).mock.calls[0][0] as string;
+      const hash2 = (rateLimiter.check as jest.Mock).mock.calls[1][0] as string;
+
+      expect(hash1).toBe(hash2);
+      expect(hash1).toMatch(/^[a-f0-9]{64}$/); // SHA-256 hex
     });
   });
 });
