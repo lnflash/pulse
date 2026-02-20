@@ -1,148 +1,143 @@
-# Pulse v4.0.0
+# Pulse v5
 
-**Keep your finger on it.**
+**Agent-native financial assistant for Flash wallet users — rebuilt from the ground up.**
 
-![logo](https://github.com/user-attachments/assets/f54a0c3e-0614-404f-a98f-087a0d61a056)
+> ⚠️ This is the v5 branch — a complete architectural rewrite. v4 docs are preserved in [`docs/`](./docs) for reference.
 
-A conversational AI-powered WhatsApp bot for Flash that enables Lightning Network payments through natural language.
+## Overview
 
-## Quick Start
-
-### Prerequisites
-
-- Node.js 20+
-- Redis server
-- Chrome/Chromium browser
-- Flash API access token
-
-### Local Development
-
-```bash
-# Clone and setup
-git clone https://github.com/lnflash/pulse.git
-cd pulse
-./scripts/setup-local.sh
-
-# Configure .env file with your API keys
-# Start development server
-npm run start:dev
-```
-
-### Production Deployment
-
-Deploy to Ubuntu VPS (22.04 or 24.04 LTS):
-
-```bash
-# Download and run setup script
-wget https://raw.githubusercontent.com/lnflash/pulse/main/scripts/setup-ubuntu-vps.sh
-chmod +x setup-ubuntu-vps.sh
-sudo ./setup-ubuntu-vps.sh
-
-# View logs and QR code
-pulse logs
-
-# Management commands
-pulse start|stop|restart|status|update|backup
-```
-
-## Key Features
-
-### 🤖 Conversational AI Interface
-
-- **Natural Conversations**: Ask questions like "What is Flash?" or "How do I send money?"
-- **Smart Onboarding**: Contextual help for new users exploring features
-- **No More Command Errors**: Every message gets a helpful response
-
-### 💸 Payment Features
-
-- Send and receive Lightning payments via WhatsApp
-- Phone number-based account linking with OTP verification
-- Real-time balance checking with currency conversion
-- Contact management and payment requests
-- Push notifications for received payments
-- Anonymous tips and group tip splitting
-
-### 🎙️ Voice & AI
-
-- Voice note support with Speech-to-Text
-- Natural language voice responses with ElevenLabs
-- AI-powered assistance with Google Gemini
-- Voice-only mode for hands-free operation
-
-### 🔧 Technical Capabilities
-
-- Multi-instance WhatsApp support
-- Message normalization engine foundation
-- Platform-agnostic messaging architecture
-- Admin controls for system management
+Pulse is a WhatsApp-based AI agent that helps Caribbean users send money, receive payments, check balances, and manage their Flash wallet — all through natural conversation. v5 is a full rewrite using a clean hexagonal architecture, replacing the NestJS v4 codebase with plain TypeScript and a purpose-built agent loop.
 
 ## Architecture
 
-Pulse v4.0.0 is built using **hexagonal architecture** (ports and adapters pattern), providing:
+```
+src/
+├── core/                    # Domain logic — no external dependencies
+│   ├── agent/               # AgentLoop, ToolRegistry, AgentConfig
+│   ├── context/             # UserContext (Zod schema), ContextManager
+│   ├── tools/               # Atomic agent capabilities
+│   │   ├── wallet/          # CheckBalance, SendPayment, ReceivePayment, ...
+│   │   ├── contacts/        # ResolveContact, ListContacts, AddContact, RemoveContact
+│   │   ├── identity/        # LinkAccount, VerifyOTP, GetAccountStatus, GetKYCStatus
+│   │   ├── merchant/        # CreateInvoice, GetDailySummary, ... (Week 6)
+│   │   ├── discovery/       # LocateAgent, GetServiceStatus (Week 9)
+│   │   └── system/          # Complete, Clarify, Escalate, UpdateContext
+│   ├── dialect/             # Caribbean dialect classification + normalization
+│   └── security/            # ConfirmationGate, RateLimiter, InputSanitizer, AuditLog
+├── ports/                   # Hexagonal boundaries (pure interfaces)
+│   ├── MessagingPort.ts     # WhatsApp / Telegram / SMS
+│   ├── AIProviderPort.ts    # Claude / Gemini / GPT-4
+│   ├── WalletPort.ts        # Flash API / Lightning
+│   ├── ContextStorePort.ts  # Redis / PostgreSQL
+│   ├── VoicePort.ts         # ElevenLabs / Whisper
+│   ├── NotificationPort.ts  # Push notifications
+│   └── StoragePort.ts       # S3 / filesystem
+├── adapters/                # Port implementations
+│   ├── ai/                  # ClaudeAdapter ✅, GeminiAdapter ✅
+│   ├── messaging/           # WhatsAppCloudAdapter (Week 2)
+│   ├── wallet/              # FlashAPIAdapter (Week 3)
+│   ├── context/             # RedisContextAdapter ✅, PersistentContextAdapter ✅
+│   ├── voice/               # ElevenLabsAdapter, WhisperAdapter (Week 5)
+│   └── storage/             # FileSystemAdapter ✅
+├── orchestrator/            # MessageOrchestrator, AgentOrchestrator, EventBus
+├── prompts/                 # System prompts and capability profiles (Markdown)
+├── config/                  # App config, logger, feature flags, model tiers
+└── api/                     # Express HTTP server (health, webhooks, admin)
+```
 
-- **Clean Separation**: Domain logic isolated from infrastructure concerns
-- **Testability**: Easy to mock interfaces and test components independently
-- **Flexibility**: Swap implementations without changing business logic
-- **Maintainability**: Clear module boundaries and dependency flow
+### Design Principles
 
-### Key Architectural Components
+- **Hexagonal architecture**: Business logic in `core/` has zero external dependencies. All I/O goes through ports.
+- **Plain TypeScript**: No NestJS, no decorators, no DI framework. Just classes with constructors.
+- **Manual dependency injection**: Adapters are wired together in `src/index.ts`.
+- **Tool-first agent loop**: The AI model drives the conversation; tools are its only way to take action.
+- **Zod schema as truth**: `UserContext` is defined once in Zod and inferred as a TypeScript type.
 
-- **Ports**: Interface definitions for domain services (WalletPort, SessionPort, etc.)
-- **Adapters**: Implementations that connect to external services (Flash API, Redis, etc.)
-- **Handlers**: Intent-based command processors with dependency injection
-- **Orchestrator**: Central message routing and handler discovery
+## Prerequisites
 
-For detailed architecture documentation, see [ARCHITECTURE.md](docs/ARCHITECTURE.md).
+- Node.js ≥ 20
+- Redis (for context store in production)
+- Anthropic API key (Claude)
+- WhatsApp Business API credentials
 
-## How to Use Pulse
+## Getting Started
 
-### Natural Language
+```bash
+# Clone and switch to v5
+git checkout v5
 
-Just chat naturally! Try:
+# Install dependencies
+npm install
 
-- "How are you?"
-- "What is Flash?"
-- "How do I send money to a friend?"
-- "Tell me about Lightning Network"
-- "What can you do?"
+# Configure environment
+cp .env.example .env
+# Edit .env with your API keys
 
-### Basic Commands
+# Development (hot-reload)
+npm run dev
 
-- `link` - Connect your Flash account
-- `balance` - Check wallet balance
-- `send [amount] to [username/phone]` - Send payment
-- `receive [amount]` - Create Lightning invoice
-- `help` - Show all commands
+# Type check
+npm run typecheck
 
-### Voice Features
+# Run tests
+npm test
 
-- Send voice notes for hands-free operation
-- `voice on/off/only` - Control voice responses
-- `voice list` - See available voices
+# Build for production
+npm run build && npm start
+```
 
-## Contributing
+## Key Concepts
 
-We welcome contributions! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines.
+### AgentLoop
+The core of Pulse v5. Each incoming message spawns an `AgentLoop` that:
+1. Sends the conversation history + available tools to Claude
+2. Executes any tool calls Claude requests
+3. Feeds results back to Claude
+4. Repeats until Claude returns a plain-text response or a terminal signal
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### UserContext
+A Zod-validated schema (in `src/core/context/UserContext.ts`) capturing everything we know about a user: identity, language preferences, financial state, behavior patterns, session state, compliance guidelines, and metadata. Persisted via `ContextStorePort`.
 
-## Documentation
+### Tool System
+Each tool implements `Tool` (in `src/core/tools/Tool.ts`) with:
+- A JSON Schema for parameters (sent to the AI model)
+- An `execute()` method that does the actual work
+- A `CompletionSignal` return that tells the loop what happens next
 
-- [Development Guide](docs/DEVELOPMENT.md) - Detailed development setup
-- [Architecture](docs/ARCHITECTURE.md) - System design and structure
-- [Security](docs/SECURITY.md) - Security implementation details
-- [API Documentation](docs/API.md) - API reference
-- [Deployment Guide](docs/DEPLOYMENT.md) - Production deployment
+### Port / Adapter Pattern
+Every external service is accessed through a port interface. Adapters implement the port. The business logic never knows which adapter is running — this makes testing and switching providers trivial.
 
-## Support
+## Testing
 
-- Create an issue on [GitHub](https://github.com/lnflash/pulse/issues)
-- WhatsApp support: Send "support" to the bot
+```bash
+npm test              # Unit tests
+npm run test:cov      # With coverage report
+```
+
+Tests live in `tests/` mirroring the `src/` structure.
+
+## 13-Week Build Plan
+
+| Week | Sprint | Status |
+|------|--------|--------|
+| 1 | Scaffold (this PR) | ✅ |
+| 2 | WhatsApp adapter + message pipeline | 🔲 |
+| 3 | Flash wallet integration | 🔲 |
+| 4 | Onboarding + account linking | 🔲 |
+| 5 | Voice messages (STT + TTS) | 🔲 |
+| 6 | Merchant tools | 🔲 |
+| 7 | Multi-language support | 🔲 |
+| 8 | Recurring payments | 🔲 |
+| 9 | Multi-agent discovery | 🔲 |
+| 10 | Analytics + spending summaries | 🔲 |
+| 11 | Security hardening | 🔲 |
+| 12 | Load testing + optimization | 🔲 |
+| 13 | Production cutover | 🔲 |
+
+## v4 Reference
+
+The v4 NestJS codebase documentation is preserved in [`docs/`](./docs) for reference during the rebuild. Do not modify v4 docs.
 
 ## License
 
-MIT License - Island Bitcoin LLC
+UNLICENSED — Flash Engineering Team

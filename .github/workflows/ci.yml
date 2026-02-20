@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - v5
+  pull_request:
+    branches:
+      - v5
+
+jobs:
+  ci:
+    name: Typecheck, Lint & Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        # Only run if lint script exists; don't fail the build if it's not configured
+        run: |
+          if npm run lint --if-present 2>&1 | grep -q "missing script"; then
+            echo "No lint script found — skipping"
+          else
+            npm run lint --if-present
+          fi
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npx jest --passWithNoTests --forceExit
+        env:
+          NODE_ENV: test
+          LOG_LEVEL: error
+
+      - name: Upload coverage report
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+        continue-on-error: true

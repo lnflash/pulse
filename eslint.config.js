@@ -1,65 +1,73 @@
-const js = require('@eslint/js');
-const typescript = require('@typescript-eslint/eslint-plugin');
-const typescriptParser = require('@typescript-eslint/parser');
-const prettier = require('eslint-plugin-prettier');
-const prettierConfig = require('eslint-config-prettier');
+// @ts-check
+import eslint from '@eslint/js';
+import tseslint from '@typescript-eslint/eslint-plugin';
+import tsparser from '@typescript-eslint/parser';
+import prettier from 'eslint-config-prettier';
 
-module.exports = [
-  js.configs.recommended,
+/** @type {import('eslint').Linter.FlatConfig[]} */
+export default [
+  // Base JS recommended
   {
-    files: ['**/*.ts'],
+    ...eslint.configs.recommended,
+    files: ['src/**/*.ts', 'tests/**/*.ts'],
+  },
+
+  // TypeScript rules
+  {
+    files: ['src/**/*.ts', 'tests/**/*.ts'],
     languageOptions: {
-      parser: typescriptParser,
+      parser: tsparser,
       parserOptions: {
-        project: 'tsconfig.json',
-        tsconfigRootDir: __dirname,
+        ecmaVersion: 2022,
         sourceType: 'module',
-      },
-      globals: {
-        node: true,
-        jest: true,
-        console: true,
-        process: true,
-        Buffer: true,
-        __dirname: true,
-        __filename: true,
-        exports: true,
-        module: true,
-        require: true,
-        global: true,
-        // Jest globals
-        describe: true,
-        it: true,
-        expect: true,
-        beforeEach: true,
-        afterEach: true,
-        beforeAll: true,
-        afterAll: true,
-        test: true,
+        project: './tsconfig.json',
       },
     },
     plugins: {
-      '@typescript-eslint': typescript,
-      prettier: prettier,
+      '@typescript-eslint': tseslint,
     },
     rules: {
-      ...typescript.configs.recommended.rules,
-      ...prettierConfig.rules,
-      '@typescript-eslint/interface-name-prefix': 'off',
+      // TypeScript safety
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { 
-        argsIgnorePattern: '^_',
-        varsIgnorePattern: '^_',
-        ignoreRestSiblings: true 
-      }],
-      '@typescript-eslint/no-this-alias': ['error', { allowDestructuring: true }],
-      'no-undef': 'off', // TypeScript handles this
-      'prettier/prettier': ['error', { singleQuote: true }],
+      '@typescript-eslint/no-non-null-assertion': 'warn',
+
+      // General quality
+      'no-console': 'error',   // Use pino logger, not console
+      'no-debugger': 'error',
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'eqeqeq': ['error', 'always'],
+
+      // Disabled rules
+      'no-undef': 'off',       // TypeScript handles this
     },
   },
+
+  // Test files — relax some rules
   {
-    ignores: ['eslint.config.js', 'dist/**', 'node_modules/**', 'coverage/**', 'jest.config.js', 'test/**/*.js'],
+    files: ['tests/**/*.ts', 'src/**/*.test.ts', 'src/**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-console': 'off',
+    },
+  },
+
+  // Prettier disables conflicting formatting rules
+  prettier,
+
+  // Ignore patterns
+  {
+    ignores: [
+      'dist/**',
+      'dist-test/**',
+      'node_modules/**',
+      'coverage/**',
+      '*.js',
+      '*.cjs',
+      '*.mjs',
+    ],
   },
 ];

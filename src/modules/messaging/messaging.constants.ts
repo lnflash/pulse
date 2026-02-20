@@ -1,5 +1,0 @@
-export const MESSAGING_PLATFORM = Symbol('MESSAGING_PLATFORM');
-export const MESSAGING_OPTIONS = Symbol('MESSAGING_OPTIONS');
-
-export const DEFAULT_MESSAGE_LENGTH = 4096;
-export const DEFAULT_MEDIA_SIZE = 16 * 1024 * 1024; // 16MB
