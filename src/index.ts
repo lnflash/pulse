@@ -5,13 +5,19 @@
  * No framework magic — just plain TypeScript constructors.
  *
  * Startup sequence:
- *   1. Load config
- *   2. Create adapters
- *   3. Register tools
- *   4. Create orchestrators
- *   5. Start HTTP server
- *   6. Initialize messaging adapter
- *   7. Register shutdown handlers
+ *   1.  Load config
+ *   2.  Create context store adapters (Redis hot cache + filesystem cold store)
+ *   3.  Create AI provider (Claude)
+ *   4.  Create voice adapters (ElevenLabs TTS + Whisper STT) — if enabled
+ *   5.  Register tools (auto-discover)
+ *   6.  Create security components
+ *   7.  Create interaction log store
+ *   8.  Create prompt loader + warm cache
+ *   9.  Create orchestrators
+ *   10. Create messaging adapter (WhatsApp)
+ *   11. Start HTTP server
+ *   12. Initialize messaging adapter + register message handler
+ *   13. Register graceful shutdown handlers
  */
 
 import express from 'express';
@@ -19,12 +25,15 @@ import { config } from './config/app.config.js';
 import { logger } from './config/logger.js';
 import { ToolRegistry } from './core/agent/ToolRegistry.js';
 import { ContextManager } from './core/context/ContextManager.js';
+import { InteractionLogStore } from './core/context/InteractionLogStore.js';
 import { ConfirmationGate } from './core/security/ConfirmationGate.js';
 import { RateLimiter } from './core/security/RateLimiter.js';
 import { InputSanitizer } from './core/security/InputSanitizer.js';
 import { AuditLog } from './core/security/AuditLog.js';
 import { ClaudeAdapter } from './adapters/ai/ClaudeAdapter.js';
 import { WhatsAppCloudAdapter } from './adapters/messaging/WhatsAppCloudAdapter.js';
+import { ElevenLabsAdapter } from './adapters/voice/ElevenLabsAdapter.js';
+import { WhisperAdapter } from './adapters/voice/WhisperAdapter.js';
 import { PersistentContextAdapter } from './adapters/context/PersistentContextAdapter.js';
 import { RedisContextAdapter } from './adapters/context/RedisContextAdapter.js';
 import { FileSystemAdapter } from './adapters/storage/FileSystemAdapter.js';
@@ -60,7 +69,7 @@ async function bootstrap(): Promise<void> {
   const contextManager = new ContextManager(hotCache, coldStore);
 
   // ---------------------------------------------------------------------------
-  // 2. AI Provider Adapter
+  // 2. AI Provider Adapter (Claude)
   // ---------------------------------------------------------------------------
   if (!config.ANTHROPIC_API_KEY) {
     logger.warn('ANTHROPIC_API_KEY not set — AI features will not work');
@@ -72,19 +81,48 @@ async function bootstrap(): Promise<void> {
   });
 
   // ---------------------------------------------------------------------------
-  // 3. Tool Registry — register all tools
+  // 3. Voice Adapters (ElevenLabs TTS + OpenAI Whisper STT) — optional
+  // ---------------------------------------------------------------------------
+  let ttsProvider: ElevenLabsAdapter | undefined;
+  let sttProvider: WhisperAdapter | undefined;
+
+  if (config.ENABLE_VOICE) {
+    if (config.ELEVENLABS_API_KEY) {
+      ttsProvider = new ElevenLabsAdapter({
+        apiKey: config.ELEVENLABS_API_KEY,
+        defaultVoiceId: config.ELEVENLABS_DEFAULT_VOICE_ID,
+      });
+      logger.info('ElevenLabs TTS adapter initialized');
+    } else {
+      logger.warn('ENABLE_VOICE=true but ELEVENLABS_API_KEY not set — TTS disabled');
+    }
+
+    if (config.OPENAI_API_KEY) {
+      sttProvider = new WhisperAdapter({ apiKey: config.OPENAI_API_KEY });
+      logger.info('Whisper STT adapter initialized');
+    } else {
+      logger.warn('ENABLE_VOICE=true but OPENAI_API_KEY not set — STT disabled');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 4. Tool Registry — register all tools via auto-discovery
   // ---------------------------------------------------------------------------
   const toolRegistry = new ToolRegistry();
-
-  // Auto-discover tools from src/core/tools/
   const discovery = await toolRegistry.autoDiscover();
   logger.info(
     { registered: discovery.toolsRegistered, failures: discovery.failures.length },
     'Tools loaded',
   );
 
+  if (discovery.failures.length > 0) {
+    for (const failure of discovery.failures) {
+      logger.warn({ path: failure.path, error: failure.error }, 'Tool load failure');
+    }
+  }
+
   // ---------------------------------------------------------------------------
-  // 4. Security components
+  // 5. Security components
   // ---------------------------------------------------------------------------
   const rateLimiter = new RateLimiter();
   const sanitizer = new InputSanitizer();
@@ -92,17 +130,33 @@ async function bootstrap(): Promise<void> {
   const _confirmationGate = new ConfirmationGate();
 
   // ---------------------------------------------------------------------------
-  // 5. Prompt loader
+  // 6. Interaction Log Store
+  // ---------------------------------------------------------------------------
+  const logStore = new InteractionLogStore(config.STORAGE_ROOT_DIR);
+  await logStore.init();
+
+  // ---------------------------------------------------------------------------
+  // 7. Prompt Loader — pre-warm cache at startup to avoid cold-start latency
   // ---------------------------------------------------------------------------
   const promptLoader = new PromptLoader();
+  await promptLoader.warmCache().catch((err) => {
+    logger.warn({ err: String(err) }, 'Prompt cache warm-up failed — will lazy-load');
+  });
 
   // ---------------------------------------------------------------------------
-  // 6. Orchestrators
+  // 8. Storage adapter (for file operations in tools)
   // ---------------------------------------------------------------------------
-  const agentOrchestrator = new AgentOrchestrator(aiProvider, toolRegistry, promptLoader);
+  const _storageAdapter = new FileSystemAdapter(config.STORAGE_ROOT_DIR);
 
   // ---------------------------------------------------------------------------
-  // 7. Messaging Adapter (WhatsApp)
+  // 9. Orchestrators
+  // ---------------------------------------------------------------------------
+
+  // AgentOrchestrator: manages AgentLoop lifecycle for each message turn
+  const agentOrchestrator = new AgentOrchestrator(aiProvider, toolRegistry);
+
+  // ---------------------------------------------------------------------------
+  // 10. Messaging Adapter (WhatsApp Cloud API)
   // ---------------------------------------------------------------------------
   const messagingAdapter = new WhatsAppCloudAdapter({
     phoneNumberId: config.WHATSAPP_PHONE_NUMBER_ID ?? '',
@@ -111,17 +165,24 @@ async function bootstrap(): Promise<void> {
     apiVersion: config.WHATSAPP_API_VERSION,
   });
 
-  const messageOrchestrator = new MessageOrchestrator(
-    messagingAdapter,
+  // ---------------------------------------------------------------------------
+  // 11. MessageOrchestrator — top-level message handler with full pipeline
+  // ---------------------------------------------------------------------------
+  const messageOrchestrator = new MessageOrchestrator({
+    messaging: messagingAdapter,
     contextManager,
     rateLimiter,
     sanitizer,
     auditLog,
     agentOrchestrator,
-  );
+    promptLoader,
+    logStore,
+    sttProvider,
+    ttsProvider,
+  });
 
   // ---------------------------------------------------------------------------
-  // 8. HTTP Server
+  // 12. HTTP Server
   // ---------------------------------------------------------------------------
   const app = express();
 
@@ -131,10 +192,7 @@ async function bootstrap(): Promise<void> {
     createRateLimitMiddleware({ maxRequests: 100, windowMs: 60_000 }),
   );
 
-  // Storage adapter (for file operations)
-  const _storageAdapter = new FileSystemAdapter(config.STORAGE_ROOT_DIR);
-
-  // Routes
+  // Health check routes (includes pings to context store, Redis, AI)
   app.use('/', createHealthRouter({
     pings: {
       contextStore: () => coldStore.ping(),
@@ -143,47 +201,69 @@ async function bootstrap(): Promise<void> {
     },
   }));
 
+  // WhatsApp webhook routes (GET = verification, POST = incoming messages)
   app.use('/', createWebhookRouter(
     messagingAdapter,
     config.WHATSAPP_WEBHOOK_VERIFY_TOKEN ?? 'dev-verify-token',
   ));
 
+  // Admin routes (protected by ADMIN_TOKEN)
   if (config.ADMIN_TOKEN) {
     app.use('/', createAdminRouter(toolRegistry, config.ADMIN_TOKEN));
   }
 
-  // Start server
+  // Start HTTP server
   const server = app.listen(config.PORT, () => {
-    logger.info({ port: config.PORT }, `Pulse v5 HTTP server listening`);
+    logger.info({ port: config.PORT }, 'Pulse v5 HTTP server listening');
   });
 
   // ---------------------------------------------------------------------------
-  // 9. Initialize messaging (after HTTP server is ready for webhooks)
+  // 13. Initialize messaging (after HTTP server is ready for webhooks)
   // ---------------------------------------------------------------------------
   if (config.WHATSAPP_PHONE_NUMBER_ID && config.WHATSAPP_ACCESS_TOKEN) {
     await messagingAdapter.initialize();
+    // Connect the WhatsApp adapter's onMessage event to MessageOrchestrator
     messageOrchestrator.register();
-    logger.info('WhatsApp messaging adapter initialized');
+    logger.info('WhatsApp messaging adapter initialized and handler registered');
   } else {
     logger.warn('WhatsApp credentials not configured — messaging disabled');
   }
 
   // ---------------------------------------------------------------------------
-  // 10. Graceful shutdown
+  // 14. Graceful shutdown
   // ---------------------------------------------------------------------------
   const shutdown = async (signal: string): Promise<void> => {
-    logger.info({ signal }, 'Shutdown signal received');
+    logger.info({ signal }, 'Shutdown signal received — draining connections');
+
     server.close(async () => {
-      await messagingAdapter.shutdown().catch(() => {});
+      try {
+        await messagingAdapter.shutdown();
+      } catch {
+        // Best-effort
+      }
       logger.info('Pulse v5 shut down cleanly');
       process.exit(0);
     });
+
+    // Force-kill after 10 seconds if shutdown hangs
+    setTimeout(() => {
+      logger.error('Graceful shutdown timeout — forcing exit');
+      process.exit(1);
+    }, 10_000).unref();
   };
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 
-  logger.info('Pulse v5 startup complete ✓');
+  logger.info(
+    {
+      voiceEnabled: config.ENABLE_VOICE,
+      ttsReady: !!ttsProvider,
+      sttReady: !!sttProvider,
+      toolsRegistered: discovery.toolsRegistered,
+    },
+    'Pulse v5 startup complete ✓',
+  );
 }
 
 bootstrap().catch((err) => {
