@@ -1,5 +1,11 @@
 /**
  * DialectNormalizer — normalize Patois/Creole text to standard English before AI processing.
+ *
+ * Strategy:
+ *  1. Sort substitution entries by pattern length (longest first) so multi-word
+ *     phrases are replaced before their component words are touched.
+ *  2. Apply each pattern as a whole-word regex, case-insensitively.
+ *  3. Return both the normalized and original text.
  */
 
 import { jamaicanPatoisDictionary } from './dictionaries/jamaican-patois.js';
@@ -7,46 +13,60 @@ import { trinidadianCreoleDictionary } from './dictionaries/trinidadian-creole.j
 
 /** Result of text normalization. */
 export interface NormalizationResult {
-  /** Normalized text */
+  /** Normalized text (Patois → English substitutions applied) */
   normalized: string;
-  /** Original text */
+  /** Original, unmodified text */
   original: string;
-  /** Number of substitutions made */
+  /** Number of distinct substitution patterns that matched */
   substitutions: number;
   /** Whether any normalization was applied */
   wasNormalized: boolean;
 }
 
+/** Internal substitution entry. */
+interface SubstitutionEntry {
+  pattern: string;
+  replacement: string;
+}
+
 /**
  * DialectNormalizer — applies dictionary substitutions to normalize Patois to English.
  *
- * This is a simple pass that's applied BEFORE sending to the AI model.
- * The AI model itself also handles dialect understanding via system prompt.
+ * This pass is applied BEFORE sending text to the AI model. The AI's system prompt
+ * also handles remaining dialect expressions for a two-layer safety net.
  */
 export class DialectNormalizer {
   /**
    * Normalize a Jamaican Patois message to standard English.
+   *
+   * Examples:
+   *   "mi waa fi sen yuh money" → "I want to send you money"
+   *   "nah, cyaan do dat ting"  → "no / will not, cannot do that thing"
+   *   "two bills"               → "200"
    */
   normalizeJamaicanPatois(text: string): NormalizationResult {
-    return this.applyDictionary(text, jamaicanPatoisDictionary.map((e) => ({
+    return this.applyDictionary(text, this.buildEntries(jamaicanPatoisDictionary.map((e) => ({
       pattern: e.patois,
       replacement: e.standard,
-    })));
+    }))));
   }
 
   /**
    * Normalize a Trinidadian Creole message to standard English.
    */
   normalizeTrinidadianCreole(text: string): NormalizationResult {
-    return this.applyDictionary(text, trinidadianCreoleDictionary.map((e) => ({
+    return this.applyDictionary(text, this.buildEntries(trinidadianCreoleDictionary.map((e) => ({
       pattern: e.patois,
       replacement: e.standard,
-    })));
+    }))));
   }
 
   /**
-   * Normalize based on a detected dialect.
-   * Falls through to returning the original text if no normalizer exists for the dialect.
+   * Normalize based on a detected dialect identifier.
+   * Falls through to the original text if no normalizer exists for the dialect.
+   *
+   * @param text    The raw user message.
+   * @param dialect Dialect identifier, e.g. 'jamaican-patois'.
    */
   normalize(text: string, dialect: string): NormalizationResult {
     switch (dialect) {
@@ -59,9 +79,19 @@ export class DialectNormalizer {
     }
   }
 
+  // ── Private helpers ──────────────────────────────────────────────────────
+
+  /**
+   * Sort entries so longer (multi-word) patterns are applied first.
+   * This prevents "mi" from matching inside "mi waa fi" before the phrase does.
+   */
+  private buildEntries(raw: SubstitutionEntry[]): SubstitutionEntry[] {
+    return [...raw].sort((a, b) => b.pattern.length - a.pattern.length);
+  }
+
   private applyDictionary(
     text: string,
-    entries: Array<{ pattern: string; replacement: string }>,
+    entries: SubstitutionEntry[],
   ): NormalizationResult {
     let normalized = text.toLowerCase();
     let substitutions = 0;
