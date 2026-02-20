@@ -53,6 +53,8 @@ const EnvSchema = z.object({
   // Storage
   STORAGE_ROOT_DIR: z.string().default('./data/storage'),
   CONTEXT_DATA_DIR: z.string().default('./data/contexts'),
+  /** AES-256 encryption key for PersistentContextAdapter. MUST be set in production. */
+  CONTEXT_ENCRYPTION_KEY: z.string().default('dev-default-key-change-in-production'),
 
   // Feature flags
   ENABLE_VOICE: z.coerce.boolean().default(false),

@@ -26,6 +26,7 @@ import { AuditLog } from './core/security/AuditLog.js';
 import { ClaudeAdapter } from './adapters/ai/ClaudeAdapter.js';
 import { WhatsAppCloudAdapter } from './adapters/messaging/WhatsAppCloudAdapter.js';
 import { PersistentContextAdapter } from './adapters/context/PersistentContextAdapter.js';
+import { RedisContextAdapter } from './adapters/context/RedisContextAdapter.js';
 import { FileSystemAdapter } from './adapters/storage/FileSystemAdapter.js';
 import { MessageOrchestrator } from './orchestrator/MessageOrchestrator.js';
 import { AgentOrchestrator } from './orchestrator/AgentOrchestrator.js';
@@ -40,12 +41,23 @@ async function bootstrap(): Promise<void> {
   logger.info({ version: '5.0.0', env: config.NODE_ENV }, 'Pulse v5 starting up');
 
   // ---------------------------------------------------------------------------
-  // 1. Context Store Adapter
+  // 1. Context Store Adapters (write-through cache pattern)
   // ---------------------------------------------------------------------------
-  // Use Redis in production, filesystem in development
-  // TODO: Week 3 — switch to RedisContextAdapter when Redis is configured
-  const contextStore = new PersistentContextAdapter(config.CONTEXT_DATA_DIR);
-  const contextManager = new ContextManager(contextStore);
+  // Cold store: durable encrypted filesystem store (always available)
+  const coldStore = new PersistentContextAdapter({
+    basePath: config.CONTEXT_DATA_DIR,
+    encryptionKey: config.CONTEXT_ENCRYPTION_KEY,
+  });
+
+  // Hot cache: Redis with TTL (used as primary read/write path in production)
+  const hotCache = new RedisContextAdapter({
+    url: config.REDIS_URL,
+    ttlSeconds: config.CONTEXT_TTL_SECONDS,
+    keyPrefix: `${config.REDIS_KEY_PREFIX}context:`,
+  });
+
+  // ContextManager: read from hotCache first, fall back to coldStore; write-through both
+  const contextManager = new ContextManager(hotCache, coldStore);
 
   // ---------------------------------------------------------------------------
   // 2. AI Provider Adapter
@@ -125,7 +137,8 @@ async function bootstrap(): Promise<void> {
   // Routes
   app.use('/', createHealthRouter({
     pings: {
-      contextStore: () => contextStore.ping(),
+      contextStore: () => coldStore.ping(),
+      redis: () => hotCache.ping(),
       ai: () => aiProvider.ping(),
     },
   }));
