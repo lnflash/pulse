@@ -21,8 +21,14 @@
  */
 
 import express from 'express';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { config } from './config/app.config.js';
 import { logger } from './config/logger.js';
+
+// Resolve __dirname for ESM (needed for runtime path resolution)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 import { ToolRegistry } from './core/agent/ToolRegistry.js';
 import { ContextManager } from './core/context/ContextManager.js';
 import { InteractionLogStore } from './core/context/InteractionLogStore.js';
@@ -109,7 +115,10 @@ async function bootstrap(): Promise<void> {
   // 4. Tool Registry — register all tools via auto-discovery
   // ---------------------------------------------------------------------------
   const toolRegistry = new ToolRegistry();
-  const discovery = await toolRegistry.autoDiscover();
+  // Use import.meta.url-based path so discovery works in both dev (src/) and prod (dist/)
+  const discovery = await toolRegistry.autoDiscover({
+    toolsDir: join(__dirname, 'core', 'tools'),
+  });
   logger.info(
     { registered: discovery.toolsRegistered, failures: discovery.failures.length },
     'Tools loaded',
