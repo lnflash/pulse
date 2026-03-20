@@ -173,6 +173,7 @@ export class VerifyOTP extends BaseTool {
             ...context.userContext.identity,
             accountLinked: true,
             phoneNumber: phone,
+            authToken,
           },
         });
         return this.complete(
@@ -193,6 +194,7 @@ export class VerifyOTP extends BaseTool {
           phoneNumber: phone,
           flashUsername: me?.username ?? undefined,
           flashAccountId: defaultAccount?.id ?? undefined,
+          authToken,
         },
       });
 
@@ -214,6 +216,7 @@ export class VerifyOTP extends BaseTool {
           ...context.userContext.identity,
           accountLinked: true,
           phoneNumber: phone,
+          authToken,
         },
       });
       return this.complete(

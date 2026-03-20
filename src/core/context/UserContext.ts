@@ -35,6 +35,12 @@ export const IdentitySchema = z.object({
   displayName: z.string().optional(),
   /** User's timezone, e.g. 'America/Jamaica' */
   timezone: z.string().optional(),
+  /**
+   * Flash API Bearer token for this user session.
+   * Obtained during OTP verification and used by wallet tools.
+   * Stored in context so it can be injected into WalletPort per-request.
+   */
+  authToken: z.string().optional(),
 });
 
 /** Language and dialect understanding */
@@ -214,6 +220,7 @@ export type PartialIdentityInput = {
   flashAccountId?: string;
   accountLinked?: boolean;
   kycTier?: 0 | 1 | 2;
+  authToken?: string;
 };
 
 /**

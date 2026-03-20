@@ -45,6 +45,19 @@ import { createDefaultContext, patchContext } from '../../src/core/context/UserC
 import type { IncomingMessage } from '../../src/ports/MessagingPort';
 import type { AIProviderPort } from '../../src/ports/AIProviderPort';
 import type { ToolRegistry } from '../../src/core/agent/ToolRegistry';
+import type { WalletPort } from '../../src/ports/WalletPort';
+
+const stubWalletPort: WalletPort = {
+  getBalance: jest.fn(),
+  sendPayment: jest.fn(),
+  createInvoice: jest.fn(),
+  getInvoice: jest.fn(),
+  getTransactionHistory: jest.fn(),
+  getExchangeRate: jest.fn(),
+  estimateFee: jest.fn(),
+  resolveRecipient: jest.fn(),
+  ping: jest.fn(),
+} as unknown as WalletPort;
 
 const MockAgentLoop = AgentLoop as jest.MockedClass<typeof AgentLoop>;
 const mockCreateDefaultAgentConfig = createDefaultAgentConfig as jest.MockedFunction<
@@ -124,7 +137,7 @@ describe('AgentOrchestrator', () => {
 
     aiProvider = makeMockAIProvider();
     toolRegistry = makeMockToolRegistry();
-    orchestrator = new AgentOrchestrator(aiProvider, toolRegistry);
+    orchestrator = new AgentOrchestrator(aiProvider, toolRegistry, stubWalletPort);
   });
 
   // --------------------------------------------------------------------------
@@ -461,6 +474,7 @@ describe('AgentOrchestrator', () => {
         expect.anything(),   // agentConfig
         toolRegistry,
         aiProvider,
+        expect.anything(),   // walletPort
       );
     });
 

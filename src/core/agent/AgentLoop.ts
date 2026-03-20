@@ -14,6 +14,7 @@ import { isTerminalSignal, requiresUserInput } from './CompletionSignal.js';
 import type { ToolRegistry } from './ToolRegistry.js';
 import type { AIProviderPort, AIMessage } from '../../ports/AIProviderPort.js';
 import type { UserContext } from '../context/UserContext.js';
+import type { WalletPort } from '../../ports/WalletPort.js';
 import { patchContext } from '../context/UserContext.js';
 import { logger } from '../../config/logger.js';
 
@@ -62,15 +63,18 @@ export class AgentLoop {
   private readonly config: AgentConfig;
   private readonly toolRegistry: ToolRegistry;
   private readonly aiProvider: AIProviderPort;
+  private readonly walletPort: WalletPort;
 
   constructor(
     config: AgentConfig,
     toolRegistry: ToolRegistry,
     aiProvider: AIProviderPort,
+    walletPort: WalletPort,
   ) {
     this.config = config;
     this.toolRegistry = toolRegistry;
     this.aiProvider = aiProvider;
+    this.walletPort = walletPort;
   }
 
   /**
@@ -184,6 +188,7 @@ export class AgentLoop {
               contextPatch = { ...contextPatch, ...patch };
             },
             requestId,
+            walletPort: this.walletPort,
           };
 
           const toolResult = await this.toolRegistry.execute(

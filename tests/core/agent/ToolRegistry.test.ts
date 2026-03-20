@@ -4,7 +4,20 @@
 
 import { ToolRegistry } from '../../../src/core/agent/ToolRegistry';
 import type { Tool, ToolResult, ToolExecutionContext } from '../../../src/core/tools/Tool';
+import type { WalletPort } from '../../../src/ports/WalletPort';
 import { createDefaultContext } from '../../../src/core/context/UserContext';
+
+const stubWalletPort = {
+  getBalance: jest.fn(),
+  sendPayment: jest.fn(),
+  createInvoice: jest.fn(),
+  getInvoice: jest.fn(),
+  getTransactionHistory: jest.fn(),
+  getExchangeRate: jest.fn(),
+  estimateFee: jest.fn(),
+  resolveRecipient: jest.fn(),
+  ping: jest.fn(),
+} as unknown as WalletPort;
 
 /** Factory for a test tool. */
 function makeTool(overrides: Partial<Tool> = {}): Tool {
@@ -114,6 +127,7 @@ describe('ToolRegistry', () => {
         userContext,
         updateContext: jest.fn(),
         requestId: 'req-123',
+        walletPort: stubWalletPort,
       };
       const result = await registry.execute('test_tool', {}, ctx);
       expect(result.success).toBe(true);
@@ -125,6 +139,7 @@ describe('ToolRegistry', () => {
         userContext,
         updateContext: jest.fn(),
         requestId: 'req-123',
+        walletPort: stubWalletPort,
       };
       await expect(registry.execute('nonexistent', {}, ctx)).rejects.toThrow(/unknown tool/);
     });
@@ -139,6 +154,7 @@ describe('ToolRegistry', () => {
         userContext,
         updateContext: jest.fn(),
         requestId: 'req-123',
+        walletPort: stubWalletPort,
       };
       const result = await registry.execute('test_tool', {}, ctx);
       expect(result.success).toBe(false);

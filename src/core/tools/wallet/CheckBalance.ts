@@ -29,15 +29,52 @@ export class CheckBalance extends BaseTool {
     params: Record<string, unknown>,
     context: ToolExecutionContext,
   ): Promise<ToolResult> {
-    const { userContext } = context;
+    const { userContext, walletPort } = context;
     const accountId = userContext.identity.flashAccountId;
+    const authToken = userContext.identity.authToken;
 
     if (!accountId) {
       return this.fail('No Flash account ID found. Account may not be fully linked.');
     }
 
-    // WalletPort is injected at runtime by the Orchestrator via DI
-    // For now, return a not-implemented error that signals the adapter is missing
-    throw new Error('WalletPort not injected. CheckBalance requires a WalletPort adapter.');
+    if (!authToken) {
+      return this.fail('No auth token found. Please link your Flash account first.');
+    }
+
+    try {
+      // Register this user's auth token before querying
+      // Register token so the adapter can authenticate this user's requests
+      if ('setAuthToken' in walletPort) {
+        (walletPort as unknown as { setAuthToken(id: string, tok: string): void }).setAuthToken(accountId, authToken);
+      }
+
+      const balance = await walletPort.getBalance(accountId);
+      const { available, total, pendingOut } = balance;
+
+      const lines: string[] = [
+        `Balance for account ${accountId}:`,
+        `  Available: ${available.display} ${available.currency}`,
+      ];
+
+      if (total.amountCents !== available.amountCents) {
+        lines.push(`  Total (incl. pending): ${total.display} ${total.currency}`);
+      }
+
+      if (pendingOut.amountCents > 0) {
+        lines.push(`  Pending outgoing: ${pendingOut.display} ${pendingOut.currency}`);
+      }
+
+      lines.push(`  As of: ${balance.asOf.toISOString()}`);
+
+      return this.success(lines.join('\n'), {
+        accountId,
+        availableCents: available.amountCents,
+        currency: available.currency,
+        asOf: balance.asOf.toISOString(),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return this.fail(`Failed to fetch balance: ${message}`);
+    }
   }
 }
