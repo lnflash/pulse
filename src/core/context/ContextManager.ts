@@ -100,7 +100,7 @@ export class ContextManager {
     // 1. Memory LRU cache
     if (this.options.enableCache) {
       const cached = this.memCache.get(phoneHash);
-      if (cached && Date.now() - cached.cachedAt < 60_000) {
+      if (cached && Date.now() - cached.cachedAt < 1_800_000) { // 30 minutes
         logger.debug({ phoneHash }, 'ContextManager: context loaded from memory cache');
         return cached.context;
       }
@@ -157,23 +157,37 @@ export class ContextManager {
   async saveContext(context: UserContext): Promise<void> {
     const phoneHash = context.identity.phoneHash;
 
+    // Always update the in-memory cache first — this ensures the context is
+    // available for the next turn even if durable writes fail.
+    this.setMemCache(phoneHash, context);
+
     // Write to both stores concurrently; cold store is authoritative
     const opts = { ttlSeconds: this.options.defaultTtlSeconds };
-    const [, coldErr] = await Promise.allSettled([
+    const [hotResult, coldResult] = await Promise.allSettled([
       this.hotCache.saveContext(phoneHash, context, opts),
       this.coldStore.saveContext(phoneHash, context, opts),
-    ]).then((results) => results.map((r) => (r.status === 'rejected' ? r.reason : null)));
+    ]);
+
+    const hotErr = hotResult.status === 'rejected' ? hotResult.reason : null;
+    const coldErr = coldResult.status === 'rejected' ? coldResult.reason : null;
+
+    if (hotErr) {
+      logger.warn(
+        { phoneHash, error: String(hotErr) },
+        'ContextManager: hot cache write failed (memory cache still valid)',
+      );
+    }
 
     if (coldErr) {
       logger.error(
         { phoneHash, error: String(coldErr) },
-        'ContextManager: cold store write failed',
+        'ContextManager: cold store write failed (memory cache still valid)',
       );
-      // Don't swallow — durable write failure should surface
+      // Surface the error so callers know persistence failed,
+      // but session remains available via in-memory cache.
       throw coldErr as Error;
     }
 
-    this.setMemCache(phoneHash, context);
     logger.debug({ phoneHash }, 'ContextManager: context saved (write-through)');
   }
 

@@ -72,6 +72,9 @@ async function bootstrap(): Promise<void> {
     keyPrefix: `${config.REDIS_KEY_PREFIX}context:`,
   });
 
+  // Ensure cold store directory exists before any reads/writes
+  await coldStore.initialize();
+
   // ContextManager: read from hotCache first, fall back to coldStore; write-through both
   const contextManager = new ContextManager(hotCache, coldStore);
 

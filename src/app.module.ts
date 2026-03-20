@@ -309,6 +309,9 @@ export async function createAppModule(): Promise<AppModule> {
 export async function initModule(module: AppModule): Promise<void> {
   logger.info('AppModule: initialising');
 
+  // Ensure cold store directory exists before any context reads/writes
+  await module.coldContextStore.initialize();
+
   if (config.WHATSAPP_PHONE_NUMBER_ID && config.WHATSAPP_ACCESS_TOKEN) {
     await module.messaging.initialize();
     module.messageOrchestrator.register();

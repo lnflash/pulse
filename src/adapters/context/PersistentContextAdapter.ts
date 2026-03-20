@@ -74,6 +74,23 @@ export class PersistentContextAdapter implements ContextStorePort {
       .digest();
   }
 
+  /**
+   * Ensure the base storage directory exists.
+   * Call once at startup before any reads/writes.
+   */
+  async initialize(): Promise<void> {
+    try {
+      await mkdir(this.basePath, { recursive: true });
+      logger.debug({ basePath: this.basePath }, 'PersistentContextAdapter: storage directory ready');
+    } catch (err) {
+      logger.error(
+        { basePath: this.basePath, error: String(err) },
+        'PersistentContextAdapter: failed to create storage directory',
+      );
+      throw err;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
