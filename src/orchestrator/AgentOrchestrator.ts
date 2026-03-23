@@ -11,6 +11,7 @@ import type { IncomingMessage } from '../ports/MessagingPort.js';
 import type { UserContext } from '../core/context/UserContext.js';
 import type { AIProviderPort, AIMessage } from '../ports/AIProviderPort.js';
 import type { ToolRegistry } from '../core/agent/ToolRegistry.js';
+import type { WalletPort } from '../ports/WalletPort.js';
 import { AgentLoop } from '../core/agent/AgentLoop.js';
 import { createDefaultAgentConfig } from '../core/agent/AgentConfig.js';
 import { logger } from '../config/logger.js';
@@ -59,6 +60,7 @@ export class AgentOrchestrator {
   constructor(
     private readonly aiProvider: AIProviderPort,
     private readonly toolRegistry: ToolRegistry,
+    private readonly walletPort: WalletPort,
   ) {}
 
   /**
@@ -100,7 +102,7 @@ export class AgentOrchestrator {
       }));
 
       // ── Create and run the AgentLoop ───────────────────────────────────────
-      const loop = new AgentLoop(agentConfig, this.toolRegistry, this.aiProvider);
+      const loop = new AgentLoop(agentConfig, this.toolRegistry, this.aiProvider, this.walletPort);
 
       const userText = message.text ?? '[Voice message]';
 

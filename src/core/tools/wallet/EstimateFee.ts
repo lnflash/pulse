@@ -3,6 +3,15 @@
  */
 
 import { BaseTool, type ToolResult, type ToolExecutionContext } from '../Tool.js';
+import type { Money } from '../../../ports/WalletPort.js';
+
+function registerToken(context: ToolExecutionContext, accountId: string): void {
+  const { authToken } = context.userContext.identity;
+  if (authToken && 'setAuthToken' in context.walletPort) {
+    (context.walletPort as unknown as { setAuthToken(id: string, tok: string): void })
+      .setAuthToken(accountId, authToken);
+  }
+}
 
 export class EstimateFee extends BaseTool {
   readonly name = 'estimate_fee';
@@ -35,9 +44,51 @@ export class EstimateFee extends BaseTool {
   };
 
   async execute(
-    _params: Record<string, unknown>,
-    _context: ToolExecutionContext,
+    params: Record<string, unknown>,
+    context: ToolExecutionContext,
   ): Promise<ToolResult> {
-    throw new Error('WalletPort not injected. EstimateFee requires a WalletPort adapter.');
+    const { userContext, walletPort } = context;
+    const accountId = userContext.identity.flashAccountId;
+
+    if (!accountId) {
+      return this.fail('No Flash account ID found. Account may not be fully linked.');
+    }
+
+    if (accountId) registerToken(context, accountId);
+
+    const destination = params['destination'] as string | undefined;
+    if (!destination) return this.fail('Destination is required.');
+
+    const amountParam = params['amount'] as { value: number; currency: string } | undefined;
+    const amount: Money = amountParam
+      ? {
+          amountCents: Math.round(amountParam.value * 100),
+          currency: amountParam.currency,
+          display: `${amountParam.value} ${amountParam.currency}`,
+        }
+      : { amountCents: 0, currency: 'SAT', display: '0 SAT' };
+
+    try {
+      const estimate = await walletPort.estimateFee(destination, amount);
+
+      return this.success(
+        [
+          'Fee estimates:',
+          `  Low:    ${estimate.low.display}`,
+          `  Medium: ${estimate.medium.display} (recommended)`,
+          `  High:   ${estimate.high.display}`,
+          `  Est. settlement time: ~${Math.round(estimate.estimatedSettlementSeconds / 60)} min`,
+        ].join('\n'),
+        {
+          lowCents: estimate.low.amountCents,
+          mediumCents: estimate.medium.amountCents,
+          highCents: estimate.high.amountCents,
+          currency: estimate.medium.currency,
+        },
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return this.fail(`Failed to estimate fee: ${message}`);
+    }
   }
 }

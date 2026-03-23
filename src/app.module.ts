@@ -242,7 +242,7 @@ export async function createAppModule(): Promise<AppModule> {
 
   // --- Orchestrators ---
   const promptLoader = new PromptLoader();
-  const agentOrchestrator = new AgentOrchestrator(primaryAI, toolRegistry);
+  const agentOrchestrator = new AgentOrchestrator(primaryAI, toolRegistry, wallet);
 
   // --- Interaction log store ---
   const logStore = new (await import('./core/context/InteractionLogStore.js')).InteractionLogStore(

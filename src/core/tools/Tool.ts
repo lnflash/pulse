@@ -9,6 +9,7 @@
 
 import type { CompletionSignal } from '../agent/CompletionSignal.js';
 import type { UserContext } from '../context/UserContext.js';
+import type { WalletPort } from '../../ports/WalletPort.js';
 
 /** Category grouping for tools. */
 export type ToolCategory =
@@ -58,6 +59,12 @@ export interface ToolExecutionContext {
    * Correlation ID for tracing this request through logs.
    */
   requestId: string;
+  /**
+   * Wallet adapter — provides access to Flash API wallet operations.
+   * Injected by AgentOrchestrator. Required for all wallet tools.
+   * Use walletPort.setAuthToken(accountId, token) before calling wallet methods.
+   */
+  walletPort: WalletPort;
 }
 
 /**

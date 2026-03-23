@@ -3,6 +3,16 @@
  */
 
 import { BaseTool, type ToolResult, type ToolExecutionContext } from '../Tool.js';
+import type { Money } from '../../../ports/WalletPort.js';
+import { v4 as uuidv4 } from 'uuid';
+
+function registerToken(context: ToolExecutionContext, accountId: string): void {
+  const { authToken } = context.userContext.identity;
+  if (authToken && 'setAuthToken' in context.walletPort) {
+    (context.walletPort as unknown as { setAuthToken(id: string, tok: string): void })
+      .setAuthToken(accountId, authToken);
+  }
+}
 
 export class SendPayment extends BaseTool {
   readonly name = 'send_payment';
@@ -40,9 +50,66 @@ export class SendPayment extends BaseTool {
   };
 
   async execute(
-    _params: Record<string, unknown>,
-    _context: ToolExecutionContext,
+    params: Record<string, unknown>,
+    context: ToolExecutionContext,
   ): Promise<ToolResult> {
-    throw new Error('WalletPort not injected. SendPayment requires a WalletPort adapter.');
+    const { userContext, walletPort } = context;
+    const accountId = userContext.identity.flashAccountId;
+
+    if (!accountId) {
+      return this.fail('No Flash account ID found. Account may not be fully linked.');
+    }
+    if (!userContext.identity.authToken) {
+      return this.fail('No auth token found. Please link your Flash account first.');
+    }
+
+    registerToken(context, accountId);
+
+    const destination = params['destination'] as string | undefined;
+    if (!destination) {
+      return this.fail('Destination is required.');
+    }
+
+    const amountParam = params['amount'] as { value: number; currency: string } | undefined;
+    const memo = params['memo'] as string | undefined;
+
+    let amount: Money | undefined;
+    if (amountParam) {
+      const amountCents = Math.round(amountParam.value * 100);
+      amount = {
+        amountCents,
+        currency: amountParam.currency,
+        display: `${amountParam.value} ${amountParam.currency}`,
+      };
+    }
+
+    try {
+      const result = await walletPort.sendPayment({
+        fromAccountId: accountId,
+        destination,
+        amount,
+        memo,
+        idempotencyKey: uuidv4(),
+      });
+
+      return this.complete(
+        [
+          '✅ Payment sent successfully!',
+          `  Amount: ${result.amountSent.display}`,
+          `  Fee: ${result.fee.display}`,
+          `  To: ${result.destinationDisplay}`,
+          `  Transaction ID: ${result.transactionId}`,
+          `  Settled: ${result.settledAt.toISOString()}`,
+        ].join('\n'),
+        {
+          transactionId: result.transactionId,
+          amountCents: result.amountSent.amountCents,
+          currency: result.amountSent.currency,
+        },
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return this.fail(`Payment failed: ${message}`);
+    }
   }
 }

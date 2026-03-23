@@ -46,6 +46,7 @@ import { FileSystemAdapter } from './adapters/storage/FileSystemAdapter.js';
 import { MessageOrchestrator } from './orchestrator/MessageOrchestrator.js';
 import { AgentOrchestrator } from './orchestrator/AgentOrchestrator.js';
 import { PromptLoader } from './config/PromptLoader.js';
+import { FlashAPIAdapter } from './adapters/wallet/FlashAPIAdapter.js';
 import { createHealthRouter } from './api/routes/health.js';
 import { createWebhookRouter } from './api/routes/webhooks.js';
 import { createAdminRouter } from './api/routes/admin.js';
@@ -161,8 +162,13 @@ async function bootstrap(): Promise<void> {
   // 9. Orchestrators
   // ---------------------------------------------------------------------------
 
+  // WalletPort adapter — shared instance, tokens registered per-user at runtime
+  const walletAdapter = new FlashAPIAdapter({
+    apiUrl: config.FLASH_API_URL ?? 'https://api.flashapp.me',
+  });
+
   // AgentOrchestrator: manages AgentLoop lifecycle for each message turn
-  const agentOrchestrator = new AgentOrchestrator(aiProvider, toolRegistry);
+  const agentOrchestrator = new AgentOrchestrator(aiProvider, toolRegistry, walletAdapter);
 
   // ---------------------------------------------------------------------------
   // 10. Messaging Adapter (WhatsApp Cloud API)
